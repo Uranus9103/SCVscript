@@ -11,6 +11,11 @@ startupSound:Play() -- Phát âm thanh khi script chạy
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ControlGUI"
 screenGui.Parent = game.CoreGui
+-- Tạo cửa sổ chính
+local Window = redzlib:MakeWindow({
+  Title = "CAT HUB",
+  SubTitle = "subcakevn",
+})
 
 -- Tạo nút (ImageButton)
 local toggleButton = Instance.new("ImageButton")
