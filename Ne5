@@ -1,0 +1,193 @@
+-- LocalScript trong StarterPlayerScripts
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+-- GUI chính
+local gui = Instance.new("ScreenGui")
+gui.Name = "ApexHubUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Thông báo chào
+local welcome = Instance.new("TextLabel")
+welcome.Text = "✨ Cảm ơn đã sử dụng ✨"
+welcome.Size = UDim2.new(1, 0, 0, 50)
+welcome.Position = UDim2.new(0, 0, 0, 10)
+welcome.TextScaled = true
+welcome.TextColor3 = Color3.fromRGB(255, 200, 0)
+welcome.Font = Enum.Font.GothamSemibold
+welcome.BackgroundTransparency = 1
+welcome.Parent = gui
+
+-- Tự động biến mất
+task.delay(3, function()
+	welcome:Destroy()
+end)
+
+-- Frame chính
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(220, 200)
+frame.Position = UDim2.new(0.05, 0, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+
+-- Viền rainbow
+local stroke = Instance.new("UIStroke", frame)
+stroke.Thickness = 3
+task.spawn(function()
+	while true do
+		for i = 0, 1, 0.01 do
+			stroke.Color = Color3.fromHSV(i, 1, 1)
+			task.wait(0.03)
+		end
+	end
+end)
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Text = "APEX HUB"
+title.Size = UDim2.fromOffset(220, 30)
+title.Position = UDim2.new(0, 0, 0, 5)
+title.TextScaled = true
+title.TextColor3 = Color3.fromRGB(255, 85, 200)
+title.Font = Enum.Font.GothamSemibold
+title.BackgroundTransparency = 1
+title.Parent = frame
+
+-- Speed Label
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Text = "Speed: " .. humanoid.WalkSpeed
+speedLabel.Size = UDim2.fromOffset(200, 25)
+speedLabel.Position = UDim2.new(0.5, -100, 0, 40)
+speedLabel.TextScaled = true
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.Font = Enum.Font.GothamSemibold
+speedLabel.BackgroundTransparency = 1
+speedLabel.Parent = frame
+
+-- Nút tăng speed
+local upBtn = Instance.new("TextButton")
+upBtn.Text = "▲"
+upBtn.Size = UDim2.fromOffset(40, 30)
+upBtn.Position = UDim2.new(0.25, -20, 0, 70)
+upBtn.Font = Enum.Font.GothamBold
+upBtn.TextScaled = true
+upBtn.TextColor3 = Color3.fromRGB(0, 255, 100)
+upBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+upBtn.Parent = frame
+Instance.new("UICorner", upBtn).CornerRadius = UDim.new(0, 6)
+
+-- Nút giảm speed
+local downBtn = upBtn:Clone()
+downBtn.Text = "▼"
+downBtn.TextColor3 = Color3.fromRGB(255, 70, 70)
+downBtn.Position = UDim2.new(0.75, -20, 0, 70)
+downBtn.Parent = frame
+
+-- Infinite Jump Toggle
+local infJumpBtn = Instance.new("TextButton")
+infJumpBtn.Text = "Infinite Jump: OFF"
+infJumpBtn.Size = UDim2.fromOffset(180, 30)
+infJumpBtn.Position = UDim2.new(0.5, -90, 0, 110)
+infJumpBtn.Font = Enum.Font.GothamSemibold
+infJumpBtn.TextScaled = true
+infJumpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+infJumpBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+infJumpBtn.Parent = frame
+Instance.new("UICorner", infJumpBtn).CornerRadius = UDim.new(0, 6)
+
+-- Save & Return Buttons
+local saveBtn = Instance.new("TextButton")
+saveBtn.Text = "Lưu Vị Trí"
+saveBtn.Size = UDim2.fromOffset(90, 30)
+saveBtn.Position = UDim2.new(0.1, 0, 0, 150)
+saveBtn.Font = Enum.Font.GothamSemibold
+saveBtn.TextScaled = true
+saveBtn.TextColor3 = Color3.fromRGB(200, 200, 255)
+saveBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+saveBtn.Parent = frame
+Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 6)
+
+local returnBtn = saveBtn:Clone()
+returnBtn.Text = "Về Vị Trí"
+returnBtn.Position = UDim2.new(0.55, 0, 0, 150)
+returnBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
+returnBtn.Parent = frame
+
+-- Biến
+local savedCFrame = nil
+local speed = humanoid.WalkSpeed
+local infiniteJump = false
+
+-- Sự kiện speed
+upBtn.MouseButton1Click:Connect(function()
+	speed = speed + 5
+	humanoid.WalkSpeed = speed
+	speedLabel.Text = "Speed: " .. speed
+end)
+
+downBtn.MouseButton1Click:Connect(function()
+	speed = math.max(0, speed - 5)
+	humanoid.WalkSpeed = speed
+	speedLabel.Text = "Speed: " .. speed
+end)
+
+-- Infinite Jump
+game:GetService("UserInputService").JumpRequest:Connect(function()
+	if infiniteJump and humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+
+infJumpBtn.MouseButton1Click:Connect(function()
+	infiniteJump = not infiniteJump
+	infJumpBtn.Text = "Infinite Jump: " .. (infiniteJump and "ON" or "OFF")
+	infJumpBtn.TextColor3 = infiniteJump and Color3.fromRGB(0,255,100) or Color3.fromRGB(255,255,255)
+end)
+
+-- Save & Return
+saveBtn.MouseButton1Click:Connect(function()
+	if character and character:FindFirstChild("HumanoidRootPart") then
+		savedCFrame = character.HumanoidRootPart.CFrame
+		saveBtn.Text = "Đã Lưu!"
+		task.delay(1.5, function() saveBtn.Text = "Lưu Vị Trí" end)
+	end
+end)
+
+returnBtn.MouseButton1Click:Connect(function()
+	if savedCFrame and character and character:FindFirstChild("HumanoidRootPart") then
+		character.HumanoidRootPart.CFrame = savedCFrame
+	end
+end)
+
+-- Kéo thả frame mượt
+local dragging, dragInput, dragStart, startPos
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
