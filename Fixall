@@ -1,0 +1,203 @@
+-- LocalScript trong StarterPlayerScripts
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+local savedCFrame = nil
+local VOID_Y = -40
+
+-- UI
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+gui.Name = "ApexHubUI"
+gui.ResetOnSpawn = false
+
+-- 🌟 Thông báo cảm ơn
+local msg = Instance.new("TextLabel")
+msg.Size = UDim2.new(1,0,0,50)
+msg.Position = UDim2.new(0,0,0,0)
+msg.BackgroundTransparency = 1
+msg.Text = "✨ Cảm ơn đã sử dụng APEX HUB ✨"
+msg.TextScaled = true
+msg.TextColor3 = Color3.fromRGB(0,255,200)
+msg.Font = Enum.Font.GothamBold
+msg.Parent = gui
+game:GetService("TweenService"):Create(msg, TweenInfo.new(2), {TextTransparency=1}):Play()
+game:GetService("Debris"):AddItem(msg,3)
+
+-- Nút toggle mở menu
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.fromOffset(120,50)
+toggleBtn.Position = UDim2.new(0,20,0.8,0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+toggleBtn.Text = "APEX HUB"
+toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Parent = gui
+Instance.new("UICorner", toggleBtn)
+
+-- Menu chính
+local menuFrame = Instance.new("Frame")
+menuFrame.Size = UDim2.fromOffset(260,220)
+menuFrame.Position = UDim2.new(0,20,0.5,-110)
+menuFrame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+menuFrame.Visible = false
+menuFrame.Active = true
+menuFrame.Draggable = true
+menuFrame.Parent = gui
+Instance.new("UICorner", menuFrame)
+
+-- Viền đổi màu 🌈
+local stroke = Instance.new("UIStroke", menuFrame)
+stroke.Thickness = 3
+task.spawn(function()
+	while task.wait() do
+		for i=0,1,0.01 do
+			stroke.Color = Color3.fromHSV(i,1,1)
+			task.wait(0.05)
+		end
+	end
+end)
+
+-- Tiêu đề dính liền menu
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,30)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundColor3 = Color3.fromRGB(25,25,25)
+title.Text = "APEX HUB"
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(0,255,255)
+title.Parent = menuFrame
+Instance.new("UICorner", title)
+
+-- Speed chỉnh ▲ ▼
+local speedVal = 16
+local speedLabel = Instance.new("TextLabel", menuFrame)
+speedLabel.Size = UDim2.fromOffset(180,30)
+speedLabel.Position = UDim2.new(0.5,-90,0,40)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: "..speedVal
+speedLabel.TextScaled = true
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.TextColor3 = Color3.fromRGB(255,255,255)
+
+local speedUp = Instance.new("TextButton", menuFrame)
+speedUp.Size = UDim2.fromOffset(30,30)
+speedUp.Position = UDim2.new(0.5,100,0,40)
+speedUp.Text = "▲"
+speedUp.TextScaled = true
+speedUp.Font = Enum.Font.GothamBold
+speedUp.BackgroundColor3 = Color3.fromRGB(40,40,40)
+speedUp.TextColor3 = Color3.fromRGB(0,255,0)
+Instance.new("UICorner", speedUp)
+
+local speedDown = Instance.new("TextButton", menuFrame)
+speedDown.Size = UDim2.fromOffset(30,30)
+speedDown.Position = UDim2.new(0.5,100,0,75)
+speedDown.Text = "▼"
+speedDown.TextScaled = true
+speedDown.Font = Enum.Font.GothamBold
+speedDown.BackgroundColor3 = Color3.fromRGB(40,40,40)
+speedDown.TextColor3 = Color3.fromRGB(255,0,0)
+Instance.new("UICorner", speedDown)
+
+-- Jump toggle
+local jumpBtn = Instance.new("TextButton", menuFrame)
+jumpBtn.Size = UDim2.fromOffset(180,40)
+jumpBtn.Position = UDim2.new(0.5,-90,0,120)
+jumpBtn.Text = "Infinite Jump: OFF"
+jumpBtn.TextScaled = true
+jumpBtn.Font = Enum.Font.GothamBold
+jumpBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+jumpBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", jumpBtn)
+
+local infiniteJump = false
+game:GetService("UserInputService").JumpRequest:Connect(function()
+	if infiniteJump and humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+jumpBtn.MouseButton1Click:Connect(function()
+	infiniteJump = not infiniteJump
+	jumpBtn.Text = infiniteJump and "Infinite Jump: ON" or "Infinite Jump: OFF"
+end)
+
+-- Save / Return position
+local saveBtn = Instance.new("TextButton", menuFrame)
+saveBtn.Size = UDim2.fromOffset(180,40)
+saveBtn.Position = UDim2.new(0.5,-90,0,170)
+saveBtn.BackgroundColor3 = Color3.fromRGB(39,174,96)
+saveBtn.Text = "Save Position"
+saveBtn.TextScaled = true
+saveBtn.Font = Enum.Font.GothamBold
+saveBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", saveBtn)
+
+local backBtn = Instance.new("TextButton", menuFrame)
+backBtn.Size = UDim2.fromOffset(180,40)
+backBtn.Position = UDim2.new(0.5,-90,0,215)
+backBtn.BackgroundColor3 = Color3.fromRGB(231,76,60)
+backBtn.Text = "Return Position"
+backBtn.TextScaled = true
+backBtn.Font = Enum.Font.GothamBold
+backBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", backBtn)
+
+saveBtn.MouseButton1Click:Connect(function()
+	character = player.Character or player.CharacterAdded:Wait()
+	root = character:WaitForChild("HumanoidRootPart")
+	savedCFrame = root.CFrame
+	saveBtn.Text = "Saved!"
+	task.delay(1.5, function() saveBtn.Text = "Save Position" end)
+end)
+
+backBtn.MouseButton1Click:Connect(function()
+	if savedCFrame then
+		root = player.Character:WaitForChild("HumanoidRootPart")
+		root.CFrame = savedCFrame + Vector3.new(0,3,0)
+	else
+		backBtn.Text = "No Saved Pos!"
+		task.delay(1.5, function() backBtn.Text = "Return Position" end)
+	end
+end)
+
+-- Auto return khi chết hoặc rơi void
+local function autoReturn()
+	if savedCFrame then
+		task.wait(0.3)
+		local newChar = player.Character or player.CharacterAdded:Wait()
+		local newRoot = newChar:WaitForChild("HumanoidRootPart")
+		newRoot.CFrame = savedCFrame + Vector3.new(0,3,0)
+	end
+end
+
+humanoid.Died:Connect(function()
+	player.CharacterAdded:Wait()
+	autoReturn()
+end)
+
+game:GetService("RunService").Heartbeat:Connect(function()
+	if savedCFrame and root and root.Position.Y < VOID_Y then
+		autoReturn()
+	end
+end)
+
+-- Toggle mở/đóng menu
+toggleBtn.MouseButton1Click:Connect(function()
+	menuFrame.Visible = not menuFrame.Visible
+end)
+
+-- Speed chỉnh
+speedUp.MouseButton1Click:Connect(function()
+	speedVal += 5
+	humanoid.WalkSpeed = speedVal
+	speedLabel.Text = "Speed: "..speedVal
+end)
+
+speedDown.MouseButton1Click:Connect(function()
+	speedVal = math.max(0,speedVal-5)
+	humanoid.WalkSpeed = speedVal
+	speedLabel.Text = "Speed: "..speedVal
+end)
