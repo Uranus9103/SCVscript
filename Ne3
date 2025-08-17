@@ -7,9 +7,9 @@ local root = character:WaitForChild("HumanoidRootPart")
 -- Biến
 local savedCFrame = nil
 local VOID_Y = -40
-local speedEnabled = false
-local normalSpeed = 16
-local boostedSpeed = 60
+local currentSpeed = 16
+local jumpPower = 50
+local infiniteJump = false
 
 -- UI
 local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
@@ -44,8 +44,8 @@ rainbowBorder(toggleBtn)
 
 -- Khung menu
 local menuFrame = Instance.new("Frame")
-menuFrame.Size = UDim2.fromOffset(240, 200)
-menuFrame.Position = UDim2.new(0, 20, 0.5, -100)
+menuFrame.Size = UDim2.fromOffset(260, 260)
+menuFrame.Position = UDim2.new(0, 20, 0.5, -130)
 menuFrame.BackgroundColor3 = Color3.fromRGB(44, 62, 80)
 menuFrame.Visible = false
 menuFrame.Parent = gui
@@ -56,8 +56,8 @@ rainbowBorder(menuFrame)
 
 -- Nút Lưu vị trí
 local saveBtn = Instance.new("TextButton")
-saveBtn.Size = UDim2.fromOffset(200, 40)
-saveBtn.Position = UDim2.new(0.5, -100, 0, 20)
+saveBtn.Size = UDim2.fromOffset(220, 40)
+saveBtn.Position = UDim2.new(0.5, -110, 0, 20)
 saveBtn.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
 saveBtn.Text = "💾 Lưu vị trí"
 saveBtn.TextScaled = true
@@ -70,8 +70,8 @@ rainbowBorder(saveBtn)
 
 -- Nút Về vị trí
 local backBtn = Instance.new("TextButton")
-backBtn.Size = UDim2.fromOffset(200, 40)
-backBtn.Position = UDim2.new(0.5, -100, 0, 70)
+backBtn.Size = UDim2.fromOffset(220, 40)
+backBtn.Position = UDim2.new(0.5, -110, 0, 70)
 backBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
 backBtn.Text = "↩️ Về vị trí"
 backBtn.TextScaled = true
@@ -82,19 +82,59 @@ local stroke4 = Instance.new("UIStroke", backBtn)
 stroke4.Thickness = 2
 rainbowBorder(backBtn)
 
--- Nút Tốc độ
-local speedBtn = Instance.new("TextButton")
-speedBtn.Size = UDim2.fromOffset(200, 40)
-speedBtn.Position = UDim2.new(0.5, -100, 0, 120)
-speedBtn.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
-speedBtn.Text = "⚡ Bật tốc độ"
-speedBtn.TextScaled = true
-speedBtn.TextColor3 = Color3.new(1,1,1)
-speedBtn.Parent = menuFrame
-Instance.new("UICorner", speedBtn)
-local stroke5 = Instance.new("UIStroke", speedBtn)
+-- Infinite Jump toggle
+local jumpBtn = Instance.new("TextButton")
+jumpBtn.Size = UDim2.fromOffset(220, 40)
+jumpBtn.Position = UDim2.new(0.5, -110, 0, 120)
+jumpBtn.BackgroundColor3 = Color3.fromRGB(155, 89, 182)
+jumpBtn.Text = "🦘 Bật nhảy vô hạn"
+jumpBtn.TextScaled = true
+jumpBtn.TextColor3 = Color3.new(1,1,1)
+jumpBtn.Parent = menuFrame
+Instance.new("UICorner", jumpBtn)
+local stroke5 = Instance.new("UIStroke", jumpBtn)
 stroke5.Thickness = 2
-rainbowBorder(speedBtn)
+rainbowBorder(jumpBtn)
+
+-- Điều chỉnh tốc độ
+local speedFrame = Instance.new("Frame")
+speedFrame.Size = UDim2.fromOffset(220, 60)
+speedFrame.Position = UDim2.new(0.5, -110, 0, 180)
+speedFrame.BackgroundColor3 = Color3.fromRGB(52, 73, 94)
+speedFrame.Parent = menuFrame
+Instance.new("UICorner", speedFrame)
+local stroke6 = Instance.new("UIStroke", speedFrame)
+stroke6.Thickness = 2
+rainbowBorder(speedFrame)
+
+local upBtn = Instance.new("TextButton")
+upBtn.Size = UDim2.fromOffset(50, 50)
+upBtn.Position = UDim2.new(0, 5, 0.5, -25)
+upBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+upBtn.Text = "▲"
+upBtn.TextScaled = true
+upBtn.TextColor3 = Color3.new(1,1,1)
+upBtn.Parent = speedFrame
+Instance.new("UICorner", upBtn)
+
+local downBtn = Instance.new("TextButton")
+downBtn.Size = UDim2.fromOffset(50, 50)
+downBtn.Position = UDim2.new(1, -55, 0.5, -25)
+downBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+downBtn.Text = "▼"
+downBtn.TextScaled = true
+downBtn.TextColor3 = Color3.new(1,1,1)
+downBtn.Parent = speedFrame
+Instance.new("UICorner", downBtn)
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.fromOffset(100, 50)
+speedLabel.Position = UDim2.new(0.5, -50, 0.5, -25)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Tốc: "..currentSpeed
+speedLabel.TextScaled = true
+speedLabel.TextColor3 = Color3.new(1,1,1)
+speedLabel.Parent = speedFrame
 
 -- Toggle menu
 toggleBtn.MouseButton1Click:Connect(function()
@@ -122,16 +162,36 @@ backBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Tốc độ chạy
-speedBtn.MouseButton1Click:Connect(function()
-	if speedEnabled then
-		speedEnabled = false
-		humanoid.WalkSpeed = normalSpeed
-		speedBtn.Text = "⚡ Bật tốc độ"
+-- Toggle nhảy vô hạn
+jumpBtn.MouseButton1Click:Connect(function()
+	infiniteJump = not infiniteJump
+	if infiniteJump then
+		jumpBtn.Text = "✅ Đang nhảy vô hạn"
 	else
-		speedEnabled = true
-		humanoid.WalkSpeed = boostedSpeed
-		speedBtn.Text = "🌀 Đang tăng tốc"
+		jumpBtn.Text = "🦘 Bật nhảy vô hạn"
+	end
+end)
+
+-- Điều chỉnh tốc độ
+local function updateSpeed()
+	humanoid.WalkSpeed = currentSpeed
+	speedLabel.Text = "Tốc: "..currentSpeed
+end
+
+upBtn.MouseButton1Click:Connect(function()
+	currentSpeed = currentSpeed + 5
+	updateSpeed()
+end)
+
+downBtn.MouseButton1Click:Connect(function()
+	currentSpeed = math.max(0, currentSpeed - 5)
+	updateSpeed()
+end)
+
+-- Infinite Jump
+game:GetService("UserInputService").JumpRequest:Connect(function()
+	if infiniteJump and humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 end)
 
@@ -158,3 +218,6 @@ game:GetService("RunService").Heartbeat:Connect(function()
 		end
 	end
 end)
+
+-- Khởi tạo tốc độ ban đầu
+updateSpeed()
