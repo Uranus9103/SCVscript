@@ -1,0 +1,341 @@
+--// ====== SETUP NHÂN VẬT ======
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+
+-- Trạng thái/biến
+local savedCFrame: CFrame? = nil
+local infJump = false
+local VOID_Y = -40
+local currentSpeed = humanoid.WalkSpeed -- sync theo nhân vật
+
+-- Khi respawn -> cập nhật tham chiếu
+local function bindCharacter(char)
+	character = char
+	humanoid = character:WaitForChild("Humanoid")
+	root = character:WaitForChild("HumanoidRootPart")
+	-- giữ nguyên speed đang chọn sau khi chết
+	task.defer(function()
+		if humanoid then
+			humanoid.WalkSpeed = currentSpeed
+			humanoid.UseJumpPower = true
+		end
+	end)
+end
+player.CharacterAdded:Connect(bindCharacter)
+
+--// ====== GUI CHÍNH ======
+local gui = Instance.new("ScreenGui")
+gui.Name = "ProHubUI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Thông báo cảm ơn
+do
+	local notify = Instance.new("TextLabel")
+	notify.Size = UDim2.new(1,0,0,50)
+	notify.Position = UDim2.new(0,0,0,10)
+	notify.BackgroundTransparency = 1
+	notify.Text = "✨ Cảm ơn đã sử dụng ✨"
+	notify.Font = Enum.Font.GothamSemibold
+	notify.TextScaled = true
+	notify.TextStrokeTransparency = 0.2
+	notify.TextColor3 = Color3.fromRGB(255,255,255)
+	notify.Parent = gui
+	TweenService:Create(notify, TweenInfo.new(0.35), {TextTransparency = 0}):Play()
+	task.delay(2.2, function()
+		TweenService:Create(notify, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+		task.wait(0.5)
+		notify:Destroy()
+	end)
+end
+
+-- Hàm viền rainbow
+local function rainbow(uiStroke: UIStroke)
+	task.spawn(function()
+		while uiStroke and uiStroke.Parent do
+			for h=0,1,0.01 do
+				uiStroke.Color = Color3.fromHSV(h,1,1)
+				task.wait(0.03)
+			end
+		end
+	end)
+end
+
+-- Kéo thả mượt cho mọi GUIObject
+local function makeSmoothDraggable(obj: GuiObject)
+	local dragging = false
+	local dragStart, startPos
+	local activeTween: Tween?
+
+	obj.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = obj.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			local goal = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			if activeTween then activeTween:Cancel() end
+			activeTween = TweenService:Create(obj, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = goal})
+			activeTween:Play()
+		end
+	end)
+end
+
+-- Nút MENU (toggle mở/đóng bảng) — kéo thả được
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleMenu"
+toggleBtn.Size = UDim2.fromOffset(120, 42)
+toggleBtn.Position = UDim2.new(0, 20, 0.75, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+toggleBtn.Text = "≡ MENU"
+toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Parent = gui
+Instance.new("UICorner", toggleBtn)
+local tStroke = Instance.new("UIStroke", toggleBtn)
+tStroke.Thickness = 2
+rainbow(tStroke)
+makeSmoothDraggable(toggleBtn)
+
+-- Khung menu — kéo thả mượt
+local frame = Instance.new("Frame")
+frame.Name = "MainPanel"
+frame.Size = UDim2.fromOffset(300, 260)
+frame.Position = UDim2.new(0, 160, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.Visible = false
+frame.Parent = gui
+Instance.new("UICorner", frame)
+local fStroke = Instance.new("UIStroke", frame)
+fStroke.Thickness = 3
+rainbow(fStroke)
+makeSmoothDraggable(frame)
+
+-- Thanh tiêu đề (kéo trên thanh này sẽ dễ hơn)
+local topBar = Instance.new("TextLabel")
+topBar.Size = UDim2.new(1, -16, 0, 36)
+topBar.Position = UDim2.new(0, 8, 0, 6)
+topBar.BackgroundColor3 = Color3.fromRGB(22,22,22)
+topBar.Text = "⚡ PRO HUB"
+topBar.TextScaled = true
+topBar.Font = Enum.Font.GothamBold
+topBar.TextColor3 = Color3.fromRGB(255,255,255)
+topBar.Parent = frame
+Instance.new("UICorner", topBar)
+local tbStroke = Instance.new("UIStroke", topBar)
+tbStroke.Thickness = 2
+rainbow(tbStroke)
+makeSmoothDraggable(topBar)
+
+-- Vùng chứa các hàng (sắp xếp gọn)
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, -16, 1, -56)
+content.Position = UDim2.new(0, 8, 0, 46)
+content.BackgroundTransparency = 1
+content.Parent = frame
+
+local list = Instance.new("UIListLayout", content)
+list.Padding = UDim.new(0, 8)
+list.FillDirection = Enum.FillDirection.Vertical
+list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+list.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Helper: tạo 1 hàng (row) nền đen bo góc
+local function createRow(height)
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(1, 0, 0, height)
+	row.BackgroundColor3 = Color3.fromRGB(22,22,22)
+	row.Parent = content
+	Instance.new("UICorner", row)
+	local s = Instance.new("UIStroke", row)
+	s.Thickness = 1.5
+	s.Color = Color3.fromRGB(40,40,40)
+	return row
+end
+
+-- Hàng: SPEED (nhãn + số + ▲ ▼)
+local rowSpeed = createRow(46)
+do
+	local title = Instance.new("TextLabel", rowSpeed)
+	title.Size = UDim2.new(0.35, 0, 1, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "Speed"
+	title.TextScaled = true
+	title.Font = Enum.Font.GothamSemibold
+	title.TextColor3 = Color3.fromRGB(255,255,255)
+
+	local value = Instance.new("TextLabel", rowSpeed)
+	value.Size = UDim2.new(0.25, 0, 1, 0)
+	value.Position = UDim2.new(0.35, 0, 0, 0)
+	value.BackgroundTransparency = 1
+	value.Text = tostring(currentSpeed)
+	value.TextScaled = true
+	value.Font = Enum.Font.GothamBold
+	value.TextColor3 = Color3.fromRGB(0,255,200)
+
+	local up = Instance.new("TextButton", rowSpeed)
+	up.Size = UDim2.new(0.18, -6, 1, -8)
+	up.Position = UDim2.new(0.60, 3, 0, 4)
+	up.Text = "▲"
+	up.TextScaled = true
+	up.Font = Enum.Font.GothamBold
+	up.TextColor3 = Color3.fromRGB(255,255,255)
+	up.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	Instance.new("UICorner", up)
+
+	local down = up:Clone()
+	down.Text = "▼"
+	down.Position = UDim2.new(0.80, 3, 0, 4)
+	down.Parent = rowSpeed
+
+	up.Parent = rowSpeed
+	down.Parent = rowSpeed
+
+	local function applySpeed(v)
+		currentSpeed = math.clamp(v, 0, 1000)
+		if humanoid then humanoid.WalkSpeed = currentSpeed end
+		value.Text = tostring(currentSpeed)
+	end
+	applySpeed(currentSpeed)
+
+	up.MouseButton1Click:Connect(function() applySpeed(currentSpeed + 5) end)
+	down.MouseButton1Click:Connect(function() applySpeed(currentSpeed - 5) end)
+end
+
+-- Hàng: NHẢY VÔ HẠN (toggle)
+local rowJump = createRow(46)
+do
+	local title = Instance.new("TextLabel", rowJump)
+	title.Size = UDim2.new(0.5, 0, 1, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "Nhảy vô hạn"
+	title.TextScaled = true
+	title.Font = Enum.Font.GothamSemibold
+	title.TextColor3 = Color3.fromRGB(255,255,255)
+
+	local toggle = Instance.new("TextButton", rowJump)
+	toggle.Size = UDim2.new(0.45, 0, 1, -8)
+	toggle.Position = UDim2.new(0.52, 0, 0, 4)
+	toggle.Text = "OFF"
+	toggle.TextScaled = true
+	toggle.Font = Enum.Font.GothamBold
+	toggle.TextColor3 = Color3.fromRGB(255,100,100)
+	toggle.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	Instance.new("UICorner", toggle)
+
+	local function setJump(state: boolean)
+		infJump = state
+		if infJump then
+			toggle.Text = "ON"
+			toggle.TextColor3 = Color3.fromRGB(0,255,160)
+		else
+			toggle.Text = "OFF"
+			toggle.TextColor3 = Color3.fromRGB(255,100,100)
+		end
+	end
+	setJump(false)
+
+	toggle.MouseButton1Click:Connect(function() setJump(not infJump) end)
+end
+
+-- Hàng: SAVE / RETURN
+local rowSave = createRow(46)
+do
+	local saveBtn = Instance.new("TextButton", rowSave)
+	saveBtn.Size = UDim2.new(0.48, -6, 1, -8)
+	saveBtn.Position = UDim2.new(0, 4, 0, 4)
+	saveBtn.Text = "💾 Save"
+	saveBtn.TextScaled = true
+	saveBtn.Font = Enum.Font.GothamBold
+	saveBtn.TextColor3 = Color3.fromRGB(200,220,255)
+	saveBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	Instance.new("UICorner", saveBtn)
+
+	local returnBtn = saveBtn:Clone()
+	returnBtn.Position = UDim2.new(0.52, 2, 0, 4)
+	returnBtn.Text = "↩ Return"
+	returnBtn.TextColor3 = Color3.fromRGB(255,220,150)
+	returnBtn.Parent = rowSave
+
+	saveBtn.MouseButton1Click:Connect(function()
+		if root then
+			savedCFrame = root.CFrame
+			saveBtn.Text = "✅ Saved"
+			task.delay(1.2, function() if saveBtn and saveBtn.Parent then saveBtn.Text = "💾 Save" end end)
+		end
+	end)
+
+	returnBtn.MouseButton1Click:Connect(function()
+		if savedCFrame and root then
+			-- lên cao 3 đơn vị để tránh kẹt sàn
+			root.CFrame = savedCFrame + Vector3.new(0, 3, 0)
+		else
+			returnBtn.Text = "❌ Chưa có!"
+			task.delay(1.2, function() if returnBtn and returnBtn.Parent then returnBtn.Text = "↩ Return" end end)
+		end
+	end)
+end
+
+-- Toggle mở/đóng bảng (có tween mượt)
+local isOpen = false
+local function setOpen(open: boolean)
+	isOpen = open
+	frame.Visible = true
+	local goal = {Size = open and UDim2.fromOffset(300,260) or UDim2.fromOffset(300,0)}
+	TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal):Play()
+	task.delay(0.18, function()
+		if not isOpen then frame.Visible = false end
+	end)
+end
+
+toggleBtn.MouseButton1Click:Connect(function()
+	setOpen(not isOpen)
+end)
+
+-- ====== NHẢY VÔ HẠN CHUẨN ======
+-- Nhấn nút nhảy (PC/Mobile) là nhảy lại ngay cả khi đang giữa không trung
+UIS.JumpRequest:Connect(function()
+	if infJump and humanoid then
+		-- đảm bảo chế độ dùng JumpPower
+		humanoid.UseJumpPower = true
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+
+-- ====== ANTI VOID + GIỮ SPEED SAU KHI CHẾT ======
+local function autoReturn()
+	if savedCFrame and root then
+		task.wait(0.2) -- chờ nhân vật ổn định
+		root.CFrame = savedCFrame + Vector3.new(0,3,0)
+	end
+end
+
+humanoid.Died:Connect(function()
+	player.CharacterAdded:Wait()
+	autoReturn()
+end)
+
+RunService.Heartbeat:Connect(function()
+	if root and savedCFrame and root.Position.Y < VOID_Y then
+		autoReturn()
+	end
+end)
