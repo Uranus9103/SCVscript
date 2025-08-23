@@ -1,8 +1,6 @@
--- Sprint + FootPad + Anti-Die + Draggable UI
--- Đặt trong StarterPlayerScripts
+-- LocalScript: StarterPlayerScripts
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
@@ -12,16 +10,8 @@ local DEFAULT_WALK = 16
 local SPRINT_WALK = 28
 local VOID_Y = -120
 
--- RemoteEvent
-local TOGGLE_RE = ReplicatedStorage:FindFirstChild("ToggleSprint")
-if not TOGGLE_RE then
-	TOGGLE_RE = Instance.new("RemoteEvent")
-	TOGGLE_RE.Name = "ToggleSprint"
-	TOGGLE_RE.Parent = ReplicatedStorage
-end
-
 ----------------------------------------------------------------
--- Attach FootPad + Anti Void + Anti Die
+-- FootPad + Anti-Die + Anti-Void
 ----------------------------------------------------------------
 local function attachFootPad(character)
 	local hrp = character:WaitForChild("HumanoidRootPart")
@@ -45,55 +35,43 @@ local function attachFootPad(character)
 	weld.Parent = pad
 end
 
-local function setupCharacter(player, character)
-	local humanoid = character:WaitForChild("Humanoid")
+local function setupCharacter(char)
+	local humanoid = char:WaitForChild("Humanoid")
 
+	-- tốc độ mặc định
 	humanoid.WalkSpeed = DEFAULT_WALK
-	attachFootPad(character)
 
-	-- Luôn giữ full máu (anti chết trong game của bạn)
+	-- gắn footpad
+	attachFootPad(char)
+
+	-- anti die: luôn giữ máu đầy
 	humanoid.HealthChanged:Connect(function()
 		if humanoid.Health < humanoid.MaxHealth then
 			humanoid.Health = humanoid.MaxHealth
 		end
 	end)
 
-	-- Cứu khi rơi void
-	local lastSafeCF = humanoid.RootPart.CFrame
+	-- anti void
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	local lastSafeCF = hrp.CFrame
 	RunService.Heartbeat:Connect(function()
-		local hrp = humanoid.RootPart
-		if not hrp then return end
 		if humanoid.Health <= 0 then return end
-
-		local y = hrp.Position.Y
-		if y > 0 then
+		if hrp.Position.Y > 0 then
 			lastSafeCF = hrp.CFrame
 		end
-		if y < VOID_Y then
-			hrp.CFrame = lastSafeCF + Vector3.new(0, 3, 0)
+		if hrp.Position.Y < VOID_Y then
+			hrp.CFrame = lastSafeCF + Vector3.new(0, 5, 0)
 			hrp.AssemblyLinearVelocity = Vector3.zero
 			hrp.AssemblyAngularVelocity = Vector3.zero
 		end
 	end)
 end
 
--- Nhận toggle sprint từ client
-TOGGLE_RE.OnServerEvent:Connect(function(plr, wantSprint)
-	local char = plr.Character
-	if not char then return end
-	local humanoid = char:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
-
-	humanoid.WalkSpeed = wantSprint and SPRINT_WALK or DEFAULT_WALK
-end)
-
-player.CharacterAdded:Connect(function(char)
-	setupCharacter(player, char)
-end)
-if player.Character then setupCharacter(player, player.Character) end
+player.CharacterAdded:Connect(setupCharacter)
+if player.Character then setupCharacter(player.Character) end
 
 ----------------------------------------------------------------
--- GUI (Draggable Button)
+-- UI Nút "Chạy nhanh" (có thể kéo)
 ----------------------------------------------------------------
 local gui = Instance.new("ScreenGui")
 gui.Name = "SprintGui"
@@ -102,14 +80,14 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local btn = Instance.new("TextButton")
 btn.Name = "SprintButton"
-btn.Size = UDim2.new(0, 140, 0, 44)
-btn.Position = UDim2.new(0.7, 0, 0.8, 0) -- ban đầu bên góc
+btn.Size = UDim2.new(0, 160, 0, 50)
+btn.Position = UDim2.new(0.7, 0, 0.8, 0)
 btn.Text = "Chạy nhanh: TẮT"
 btn.TextScaled = true
-btn.BackgroundTransparency = 0.1
+btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
 btn.Parent = gui
 btn.Active = true
-btn.Draggable = true -- có thể kéo nút đi
+btn.Draggable = true -- di chuyển được
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
@@ -119,15 +97,16 @@ local stroke = Instance.new("UIStroke")
 stroke.Thickness = 2
 stroke.Parent = btn
 
+local isOn = false
 local function setBtn(on)
+	isOn = on
 	btn.Text = on and "Chạy nhanh: BẬT" or "Chạy nhanh: TẮT"
+	btn.BackgroundColor3 = on and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(0, 200, 0)
+	if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+		player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = on and SPRINT_WALK or DEFAULT_WALK
+	end
 end
 
-local isOn = false
-setBtn(isOn)
-
 btn.MouseButton1Click:Connect(function()
-	isOn = not isOn
-	setBtn(isOn)
-	TOGGLE_RE:FireServer(isOn)
+	setBtn(not isOn)
 end)
