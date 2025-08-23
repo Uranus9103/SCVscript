@@ -1,50 +1,24 @@
 -- LocalScript: StarterPlayerScripts
+-- Jump High + Immortal + Anti-Void
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-
 local player = Players.LocalPlayer
 
 -- Config
-local DEFAULT_WALK = 16
-local SPRINT_WALK = 28
-local VOID_Y = -120
+local DEFAULT_JUMP = 50       -- nhảy bình thường
+local HIGH_JUMP = 120         -- nhảy cao khi bật
+local VOID_Y = -120           -- mức rơi sẽ cứu
 
 ----------------------------------------------------------------
--- FootPad + Anti-Die + Anti-Void
+-- Anti-Die + Anti-Void
 ----------------------------------------------------------------
-local function attachFootPad(character)
-	local hrp = character:WaitForChild("HumanoidRootPart")
-	local old = character:FindFirstChild("FootPad")
-	if old then old:Destroy() end
-
-	local pad = Instance.new("Part")
-	pad.Name = "FootPad"
-	pad.Size = Vector3.new(4, 0.2, 4)
-	pad.Transparency = 0.2
-	pad.Material = Enum.Material.Neon
-	pad.Color = Color3.fromRGB(150, 255, 150)
-	pad.CanCollide = false
-	pad.Massless = true
-	pad.Anchored = false
-	pad.Parent = character
-
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = pad
-	weld.Part1 = hrp
-	weld.Parent = pad
-end
-
 local function setupCharacter(char)
 	local humanoid = char:WaitForChild("Humanoid")
+	humanoid.UseJumpPower = true
+	humanoid.JumpPower = DEFAULT_JUMP
 
-	-- tốc độ mặc định
-	humanoid.WalkSpeed = DEFAULT_WALK
-
-	-- gắn footpad
-	attachFootPad(char)
-
-	-- anti die: luôn giữ máu đầy
+	-- bất tử
 	humanoid.HealthChanged:Connect(function()
 		if humanoid.Health < humanoid.MaxHealth then
 			humanoid.Health = humanoid.MaxHealth
@@ -71,23 +45,23 @@ player.CharacterAdded:Connect(setupCharacter)
 if player.Character then setupCharacter(player.Character) end
 
 ----------------------------------------------------------------
--- UI Nút "Chạy nhanh" (có thể kéo)
+-- UI Nút "Nhảy cao"
 ----------------------------------------------------------------
 local gui = Instance.new("ScreenGui")
-gui.Name = "SprintGui"
+gui.Name = "JumpGui"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local btn = Instance.new("TextButton")
-btn.Name = "SprintButton"
+btn.Name = "JumpButton"
 btn.Size = UDim2.new(0, 160, 0, 50)
-btn.Position = UDim2.new(0.7, 0, 0.8, 0)
-btn.Text = "Chạy nhanh: TẮT"
+btn.Position = UDim2.new(0.7, 0, 0.7, 0)
+btn.Text = "Nhảy cao: TẮT"
 btn.TextScaled = true
-btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+btn.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
 btn.Parent = gui
 btn.Active = true
-btn.Draggable = true -- di chuyển được
+btn.Draggable = true -- có thể kéo
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
@@ -97,16 +71,17 @@ local stroke = Instance.new("UIStroke")
 stroke.Thickness = 2
 stroke.Parent = btn
 
-local isOn = false
+-- trạng thái nhảy cao
+local isHighJump = false
 local function setBtn(on)
-	isOn = on
-	btn.Text = on and "Chạy nhanh: BẬT" or "Chạy nhanh: TẮT"
-	btn.BackgroundColor3 = on and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(0, 200, 0)
+	isHighJump = on
+	btn.Text = on and "Nhảy cao: BẬT" or "Nhảy cao: TẮT"
+	btn.BackgroundColor3 = on and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(0, 150, 200)
 	if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-		player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = on and SPRINT_WALK or DEFAULT_WALK
+		player.Character:FindFirstChildOfClass("Humanoid").JumpPower = on and HIGH_JUMP or DEFAULT_JUMP
 	end
 end
 
 btn.MouseButton1Click:Connect(function()
-	setBtn(not isOn)
+	setBtn(not isHighJump)
 end)
