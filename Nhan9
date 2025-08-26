@@ -1,0 +1,242 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- GUI chính
+local gui = player:WaitForChild("PlayerGui"):FindFirstChild("MainGui")
+if not gui then
+	gui = Instance.new("ScreenGui")
+	gui.Name = "MainGui"
+	gui.ResetOnSpawn = false
+	gui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- Nút ẩn/hiện menu
+local toggleMenuBtn = Instance.new("TextButton")
+toggleMenuBtn.Size = UDim2.new(0,120,0,40)
+toggleMenuBtn.Position = UDim2.new(0,10,0,10)
+toggleMenuBtn.Text = "📂 Menu"
+toggleMenuBtn.TextScaled = true
+toggleMenuBtn.BackgroundColor3 = Color3.fromRGB(60,120,200)
+toggleMenuBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleMenuBtn.Font = Enum.Font.GothamBold
+toggleMenuBtn.Active = true
+toggleMenuBtn.Draggable = true -- Kéo được
+toggleMenuBtn.Parent = gui
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0,8)
+btnCorner.Parent = toggleMenuBtn
+
+-- Khung menu
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,220,0,250)
+frame.Position = UDim2.new(0.05,0,0.2,0)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.Active = true
+frame.Draggable = true -- Kéo được
+frame.Visible = false
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0,12)
+frameCorner.Parent = frame
+
+-- Scroll list cho nút
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(1,0,1,0)
+scrollingFrame.CanvasSize = UDim2.new(0,0,2,0)
+scrollingFrame.BackgroundTransparency = 1
+scrollingFrame.ScrollBarThickness = 6
+scrollingFrame.Parent = frame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0,6)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.Parent = scrollingFrame
+
+-- Hàm tạo nút
+local function createButton(name, text)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.9,0,0,40)
+	btn.Text = text
+	btn.TextScaled = true
+	btn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	btn.Font = Enum.Font.GothamBold
+	btn.Parent = scrollingFrame
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0,10)
+	corner.Parent = btn
+	return btn
+end
+
+-- Các nút
+local btnLift = createButton("Lift","⬆️ Nâng OFF")
+local btnFly = createButton("Fly","🛑 Đi Trên Không OFF")
+local btnESP = createButton("ESP","👁️ ESP OFF")
+local btnWarn = createButton("Warn","⚠️ Cảnh báo gần OFF")
+
+-- Thông báo trên màn hình
+local warningLabel = Instance.new("TextLabel")
+warningLabel.Size = UDim2.new(1,0,0,50)
+warningLabel.Position = UDim2.new(0,0,0,0)
+warningLabel.BackgroundTransparency = 1
+warningLabel.TextColor3 = Color3.fromRGB(255,0,0)
+warningLabel.Font = Enum.Font.GothamBold
+warningLabel.TextScaled = true
+warningLabel.Text = ""
+warningLabel.Parent = gui
+
+-- Toggle menu
+toggleMenuBtn.MouseButton1Click:Connect(function()
+	frame.Visible = not frame.Visible
+end)
+
+---------------------------------------------------------
+-- Code chức năng (rút gọn để bạn dễ đọc)
+---------------------------------------------------------
+
+-- Lift
+local liftPart, liftEnabled, connection = nil, false, nil
+local speed = 17
+btnLift.MouseButton1Click:Connect(function()
+	liftEnabled = not liftEnabled
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+	if liftEnabled then
+		liftPart = Instance.new("Part")
+		liftPart.Size = Vector3.new(6,1,6)
+		liftPart.Anchored = true
+		liftPart.CanCollide = true
+		liftPart.Color = Color3.fromRGB(50,200,50)
+		liftPart.Transparency = 0.2
+		liftPart.Parent = workspace
+		btnLift.Text = "⬆️ Nâng ON"
+		btnLift.BackgroundColor3 = Color3.fromRGB(50,200,50)
+		connection = RunService.RenderStepped:Connect(function(dt)
+			if hrp and liftPart and liftEnabled then
+				local pos = hrp.Position - Vector3.new(0,3,0)
+				liftPart.CFrame = CFrame.new(pos) * CFrame.new(0, speed*dt, 0)
+			end
+		end)
+	else
+		if liftPart then liftPart:Destroy() end
+		if connection then connection:Disconnect() end
+		btnLift.Text = "⬆️ Nâng OFF"
+		btnLift.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	end
+end)
+
+-- Fly
+local flyPart, flyEnabled, flyConnection = nil, false, nil
+local flyHeight, flyRange, switchTime = 3, 1, 1
+local goingUp, flyTimer = true, 0
+btnFly.MouseButton1Click:Connect(function()
+	flyEnabled = not flyEnabled
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+	if flyEnabled then
+		flyPart = Instance.new("Part")
+		flyPart.Size = Vector3.new(8,1,8)
+		flyPart.Anchored = true
+		flyPart.CanCollide = true
+		flyPart.Color = Color3.fromRGB(100,150,250)
+		flyPart.Transparency = 0.2
+		flyPart.Parent = workspace
+		btnFly.Text = "🛑 Đi Trên Không ON"
+		btnFly.BackgroundColor3 = Color3.fromRGB(50,200,50)
+		goingUp, flyTimer = true, 0
+		flyConnection = RunService.RenderStepped:Connect(function(dt)
+			if hrp and flyPart and flyEnabled then
+				flyTimer += dt
+				if flyTimer >= switchTime then goingUp = not goingUp flyTimer = 0 end
+				local basePos = hrp.Position - Vector3.new(0, flyHeight, 0)
+				local offset = goingUp and flyRange or -flyRange
+				flyPart.CFrame = flyPart.CFrame:Lerp(CFrame.new(basePos + Vector3.new(0, offset, 0)), 0.2)
+			end
+		end)
+	else
+		if flyPart then flyPart:Destroy() end
+		if flyConnection then flyConnection:Disconnect() end
+		btnFly.Text = "🛑 Đi Trên Không OFF"
+		btnFly.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	end
+end)
+
+-- ESP
+local espEnabled = false
+btnESP.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	if espEnabled then
+		btnESP.Text = "👁️ ESP ON"
+		btnESP.BackgroundColor3 = Color3.fromRGB(50,200,50)
+	else
+		btnESP.Text = "👁️ ESP OFF"
+		btnESP.BackgroundColor3 = Color3.fromRGB(200,50,50)
+		for _,v in pairs(workspace:GetDescendants()) do
+			if v:IsA("BillboardGui") and v.Name == "ESPTag" then v:Destroy() end
+		end
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if espEnabled then
+		for _,p in pairs(Players:GetPlayers()) do
+			if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
+				local head = p.Character.Head
+				if not head:FindFirstChild("ESPTag") then
+					local bb = Instance.new("BillboardGui")
+					bb.Name = "ESPTag"
+					bb.Size = UDim2.new(0,100,0,50)
+					bb.Adornee = head
+					bb.AlwaysOnTop = true
+					bb.Parent = head
+					local label = Instance.new("TextLabel", bb)
+					label.Size = UDim2.new(1,0,1,0)
+					label.BackgroundTransparency = 1
+					label.Text = p.Name
+					label.TextColor3 = Color3.fromRGB(0,255,0)
+					label.TextScaled = true
+				end
+			end
+		end
+	end
+end)
+
+-- Cảnh báo gần
+local warnEnabled = false
+local warnDistance = 20
+btnWarn.MouseButton1Click:Connect(function()
+	warnEnabled = not warnEnabled
+	if warnEnabled then
+		btnWarn.Text = "⚠️ Cảnh báo gần ON"
+		btnWarn.BackgroundColor3 = Color3.fromRGB(50,200,50)
+	else
+		btnWarn.Text = "⚠️ Cảnh báo gần OFF"
+		btnWarn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+		warningLabel.Text = ""
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if warnEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = player.Character.HumanoidRootPart
+		local found = false
+		for _,p in pairs(Players:GetPlayers()) do
+			if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+				local dist = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+				if dist <= warnDistance then
+					found = true
+					break
+				end
+			end
+		end
+		if found then
+			warningLabel.Text = "⚠️ Cẩn thận! Có người lại gần! (Careful! Someone is nearby!)"
+		else
+			warningLabel.Text = ""
+		end
+	end
+end)
