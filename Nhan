@@ -1,0 +1,38 @@
+-- LocalScript trong StarterGui (hoặc bạn có thể loadstring từ GitHub)
+local player = game.Players.LocalPlayer
+
+-- GUI chính
+local gui = Instance.new("ScreenGui")
+gui.Name = "DoubleAllGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Nút bấm
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 200, 0, 50)
+button.Position = UDim2.new(0.5, -100, 0.8, 0)
+button.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextScaled = true
+button.Font = Enum.Font.SourceSansBold
+button.Text = "Nhân đôi tiền & Pet"
+button.Parent = gui
+
+-- Khi bấm
+button.MouseButton1Click:Connect(function()
+	-- Nhân đôi tiền
+	local stats = player:FindFirstChild("leaderstats")
+	if stats and stats:FindFirstChild("Money") then
+		local money = stats.Money
+		money.Value = money.Value * 2
+	end
+	
+	-- Nhân đôi Pet đang cầm
+	local equippedPets = player:FindFirstChild("EquippedPets")
+	if equippedPets then
+		for _, pet in ipairs(equippedPets:GetChildren()) do
+			local clone = pet:Clone()
+			clone.Parent = equippedPets
+		end
+	end
+end)
