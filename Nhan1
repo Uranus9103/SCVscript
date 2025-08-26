@@ -1,33 +1,33 @@
--- LocalScript trong StarterGui (hoặc bạn có thể loadstring từ GitHub)
+-- LocalScript (có thể đưa lên GitHub để loadstring)
 local player = game.Players.LocalPlayer
 
--- GUI chính
+-- Tạo GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "DoubleAllGui"
+gui.Name = "DoubleGui"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- Nút bấm
+-- Tạo nút
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 200, 0, 50)
-button.Position = UDim2.new(0.5, -100, 0.8, 0)
-button.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+button.Size = UDim2.new(0, 220, 0, 60)
+button.Position = UDim2.new(1, -230, 0, 20) -- Góc phải phía trên
+button.AnchorPoint = Vector2.new(0,0)
+button.BackgroundColor3 = Color3.fromRGB(60, 180, 75) -- xanh lá
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.TextScaled = true
 button.Font = Enum.Font.SourceSansBold
+button.TextScaled = true
 button.Text = "Nhân đôi tiền & Pet"
 button.Parent = gui
 
--- Khi bấm
+-- Sự kiện bấm nút
 button.MouseButton1Click:Connect(function()
 	-- Nhân đôi tiền
 	local stats = player:FindFirstChild("leaderstats")
 	if stats and stats:FindFirstChild("Money") then
-		local money = stats.Money
-		money.Value = money.Value * 2
+		stats.Money.Value = stats.Money.Value * 2
 	end
 	
-	-- Nhân đôi Pet đang cầm
+	-- Nhân đôi pet đang cầm
 	local equippedPets = player:FindFirstChild("EquippedPets")
 	if equippedPets then
 		for _, pet in ipairs(equippedPets:GetChildren()) do
