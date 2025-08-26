@@ -1,0 +1,56 @@
+--// Nhân đôi số tiền hiện có với nút UI
+--// Code by ChatGPT
+
+-- Tạo leaderstats cho player (nếu chưa có)
+game.Players.PlayerAdded:Connect(function(player)
+    local leaderstats = player:FindFirstChild("leaderstats")
+    if not leaderstats then
+        leaderstats = Instance.new("Folder")
+        leaderstats.Name = "leaderstats"
+        leaderstats.Parent = player
+    end
+
+    -- Nếu chưa có Money thì tạo
+    local money = leaderstats:FindFirstChild("Money")
+    if not money then
+        money = Instance.new("IntValue")
+        money.Name = "Money"
+        money.Value = 20 -- mặc định lần đầu vào game có 20€
+        money.Parent = leaderstats
+    end
+end)
+
+-- GUI chỉ chạy cho local player
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Tạo ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "MoneyMultiplierGui"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+-- Tạo nút nhân đôi
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(1, -160, 0, 20) -- góc trên bên phải
+button.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.SourceSansBold
+button.TextSize = 20
+button.Text = "Nhân đôi tiền"
+button.Parent = gui
+
+-- Khi bấm vào nút -> nhân đôi số tiền hiện có
+button.MouseButton1Click:Connect(function()
+    local stats = player:FindFirstChild("leaderstats")
+    if stats then
+        local money = stats:FindFirstChild("Money")
+        if money then
+            money.Value = money.Value * 2
+            button.Text = "Đã nhân đôi! ("..money.Value..")"
+            task.wait(1.5)
+            button.Text = "Nhân đôi tiền"
+        end
+    end
+end)
