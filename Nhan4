@@ -1,0 +1,212 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- GUI (tạo 1 lần, reset không mất)
+local gui = player:WaitForChild("PlayerGui"):FindFirstChild("LiftGui")
+if not gui then
+	gui = Instance.new("ScreenGui")
+	gui.Name = "LiftGui"
+	gui.ResetOnSpawn = false 
+	gui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- Khung menu
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,220,0,200)
+frame.Position = UDim2.new(0.05,0,0.2,0)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0,12)
+frameCorner.Parent = frame
+
+-- Thêm ScrollingFrame để chứa nút
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 1, -10)
+scroll.Position = UDim2.new(0,5,0,5)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.new(0,0,0,0) -- auto cập nhật
+scroll.ScrollBarThickness = 6
+scroll.Parent = frame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0,10)
+layout.FillDirection = Enum.FillDirection.Vertical
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = scroll
+
+-- Hàm tạo nút
+local function createButton(text, color)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.9,0,0,40)
+	btn.Text = text
+	btn.TextScaled = true
+	btn.BackgroundColor3 = color
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	btn.Font = Enum.Font.GothamBold
+	btn.Parent = scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0,10)
+	corner.Parent = btn
+
+	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
+	end)
+
+	return btn
+end
+
+-- ==============================
+-- Nút Nâng
+-- ==============================
+local btnLift = createButton("⬆️ Nâng OFF", Color3.fromRGB(200,50,50))
+local liftPart, liftEnabled, connection = nil, false, nil
+local speed = 17
+
+local function toggleLift()
+	liftEnabled = not liftEnabled
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	if liftEnabled then
+		liftPart = Instance.new("Part")
+		liftPart.Size = Vector3.new(6,1,6)
+		liftPart.Anchored = true
+		liftPart.CanCollide = true
+		liftPart.Color = Color3.fromRGB(50,200,50)
+		liftPart.Transparency = 0.2
+		liftPart.Name = "LiftBlock"
+		liftPart.Parent = workspace
+
+		btnLift.Text = "⬆️ Nâng ON"
+		btnLift.BackgroundColor3 = Color3.fromRGB(50,200,50)
+
+		connection = RunService.RenderStepped:Connect(function(dt)
+			if hrp and liftPart and liftEnabled then
+				local pos = hrp.Position - Vector3.new(0,3,0)
+				liftPart.CFrame = CFrame.new(pos) * CFrame.new(0, speed*dt, 0)
+			end
+		end)
+	else
+		if liftPart then liftPart:Destroy() liftPart = nil end
+		if connection then connection:Disconnect() connection = nil end
+		btnLift.Text = "⬆️ Nâng OFF"
+		btnLift.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	end
+end
+btnLift.MouseButton1Click:Connect(toggleLift)
+
+-- ==============================
+-- Nút Đi Trên Không
+-- ==============================
+local btnFly = createButton("🛑 Đi Trên Không OFF", Color3.fromRGB(200,50,50))
+local flyPart, flyEnabled, flyConnection = nil, false, nil
+local flyHeight, flyRange, switchTime = 3, 1, 1
+local goingUp, flyTimer = true, 0
+
+local function toggleFly()
+	flyEnabled = not flyEnabled
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	if flyEnabled then
+		flyPart = Instance.new("Part")
+		flyPart.Size = Vector3.new(8,1,8)
+		flyPart.Anchored = true
+		flyPart.CanCollide = true
+		flyPart.Color = Color3.fromRGB(100,150,250)
+		flyPart.Transparency = 0.2
+		flyPart.Name = "FlyPlatform"
+		flyPart.Parent = workspace
+
+		flyPart.CFrame = CFrame.new(hrp.Position - Vector3.new(0, flyHeight, 0))
+
+		btnFly.Text = "🛑 Đi Trên Không ON"
+		btnFly.BackgroundColor3 = Color3.fromRGB(50,200,50)
+
+		goingUp, flyTimer = true, 0
+
+		flyConnection = RunService.RenderStepped:Connect(function(dt)
+			if hrp and flyPart and flyEnabled then
+				flyTimer += dt
+				if flyTimer >= switchTime then
+					goingUp = not goingUp
+					flyTimer = 0
+				end
+
+				local basePos = hrp.Position - Vector3.new(0, flyHeight, 0)
+				local offset = goingUp and flyRange or -flyRange
+				flyPart.CFrame = flyPart.CFrame:Lerp(CFrame.new(basePos + Vector3.new(0, offset, 0)), 0.2)
+			end
+		end)
+	else
+		if flyPart then flyPart:Destroy() flyPart = nil end
+		if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+		btnFly.Text = "🛑 Đi Trên Không OFF"
+		btnFly.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	end
+end
+btnFly.MouseButton1Click:Connect(toggleFly)
+
+-- ==============================
+-- Nút ESP
+-- ==============================
+local btnESP = createButton("👀 ESP OFF", Color3.fromRGB(200,50,50))
+local espEnabled = false
+local highlights = {}
+
+local function addESP(targetPlayer)
+	if targetPlayer.Character and not highlights[targetPlayer] then
+		local hl = Instance.new("Highlight")
+		hl.FillTransparency = 1
+		hl.OutlineColor = Color3.fromRGB(255,0,0)
+		hl.OutlineTransparency = 0
+		hl.Adornee = targetPlayer.Character
+		hl.Parent = targetPlayer.Character
+		highlights[targetPlayer] = hl
+	end
+end
+
+local function removeESP(targetPlayer)
+	if highlights[targetPlayer] then
+		highlights[targetPlayer]:Destroy()
+		highlights[targetPlayer] = nil
+	end
+end
+
+local function toggleESP()
+	espEnabled = not espEnabled
+	if espEnabled then
+		btnESP.Text = "👀 ESP ON"
+		btnESP.BackgroundColor3 = Color3.fromRGB(50,200,50)
+
+		for _,plr in pairs(Players:GetPlayers()) do
+			if plr ~= player then
+				addESP(plr)
+				plr.CharacterAdded:Connect(function()
+					if espEnabled then
+						task.wait(1)
+						addESP(plr)
+					end
+				end)
+			end
+		end
+	else
+		btnESP.Text = "👀 ESP OFF"
+		btnESP.BackgroundColor3 = Color3.fromRGB(200,50,50)
+
+		for _,plr in pairs(Players:GetPlayers()) do
+			if plr ~= player then
+				removeESP(plr)
+			end
+		end
+	end
+end
+btnESP.MouseButton1Click:Connect(toggleESP)
