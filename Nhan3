@@ -71,7 +71,7 @@ local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0,80,0,40)
 toggleBtn.Position = UDim2.new(0,10,0.05,0) -- góc trái trên
 toggleBtn.BackgroundColor3 = Color3.fromRGB(80,80,200)
-toggleBtn.Text = "📂 Menu"
+toggleBtn.Text = "APEX HUB"
 toggleBtn.TextScaled = true
 toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
 toggleBtn.Font = Enum.Font.GothamBold
@@ -88,10 +88,10 @@ toggleBtn.MouseButton1Click:Connect(function()
 	menuVisible = not menuVisible
 	frame.Visible = menuVisible
 	if menuVisible then
-		toggleBtn.Text = "📂 Menu"
+		toggleBtn.Text = "APEX HUB"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(80,80,200)
 	else
-		toggleBtn.Text = "📂 Mở"
+		toggleBtn.Text = "APEX HUB"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(200,80,80)
 	end
 end)
@@ -99,9 +99,9 @@ end)
 -- ==========================================
 -- Nút Nâng
 -- ==========================================
-local btnLift = createButton("⬆️ Nâng OFF", Color3.fromRGB(200,50,50))
+local btnLift = createButton("⬆️ Lift : OFF", Color3.fromRGB(200,50,50))
 local liftPart, liftEnabled, connection = nil, false, nil
-local speed = 17
+local speed = 20
 
 local function toggleLift()
 	liftEnabled = not liftEnabled
@@ -118,7 +118,7 @@ local function toggleLift()
 		liftPart.Name = "LiftBlock"
 		liftPart.Parent = workspace
 
-		btnLift.Text = "⬆️ Nâng ON"
+		btnLift.Text = "⬆️ Lift : ON"
 		btnLift.BackgroundColor3 = Color3.fromRGB(50,200,50)
 
 		connection = RunService.RenderStepped:Connect(function(dt)
@@ -130,7 +130,7 @@ local function toggleLift()
 	else
 		if liftPart then liftPart:Destroy() liftPart = nil end
 		if connection then connection:Disconnect() connection = nil end
-		btnLift.Text = "⬆️ Nâng OFF"
+		btnLift.Text = "⬆️ Lift : OFF"
 		btnLift.BackgroundColor3 = Color3.fromRGB(200,50,50)
 	end
 end
@@ -139,7 +139,7 @@ btnLift.MouseButton1Click:Connect(toggleLift)
 -- ==========================================
 -- Nút Đi Trên Không
 -- ==========================================
-local btnFly = createButton("🛑 Đi Trên Không OFF", Color3.fromRGB(200,50,50))
+local btnFly = createButton("🛑 Đi Trên Không : OFF", Color3.fromRGB(200,50,50))
 local flyPart, flyEnabled, flyConnection = nil, false, nil
 local flyHeight, flyRange, switchTime = 3, 1, 1
 local goingUp, flyTimer = true, 0
@@ -161,7 +161,7 @@ local function toggleFly()
 
 		flyPart.CFrame = CFrame.new(hrp.Position - Vector3.new(0, flyHeight, 0))
 
-		btnFly.Text = "🛑 Đi Trên Không ON"
+		btnFly.Text = "🛑 Đi Trên Không : ON"
 		btnFly.BackgroundColor3 = Color3.fromRGB(50,200,50)
 
 		goingUp, flyTimer = true, 0
@@ -182,7 +182,7 @@ local function toggleFly()
 	else
 		if flyPart then flyPart:Destroy() flyPart = nil end
 		if flyConnection then flyConnection:Disconnect() flyConnection = nil end
-		btnFly.Text = "🛑 Đi Trên Không OFF"
+		btnFly.Text = "🛑 Đi Trên Không : OFF"
 		btnFly.BackgroundColor3 = Color3.fromRGB(200,50,50)
 	end
 end
@@ -217,7 +217,7 @@ end
 local function toggleESP()
 	espEnabled = not espEnabled
 	if espEnabled then
-		btnESP.Text = "👀 ESP ON"
+		btnESP.Text = "👀 ESP : ON"
 		btnESP.BackgroundColor3 = Color3.fromRGB(50,200,50)
 
 		for _,plr in pairs(Players:GetPlayers()) do
@@ -232,7 +232,7 @@ local function toggleESP()
 			end
 		end
 	else
-		btnESP.Text = "👀 ESP OFF"
+		btnESP.Text = "👀 ESP : OFF"
 		btnESP.BackgroundColor3 = Color3.fromRGB(200,50,50)
 		for _,plr in pairs(Players:GetPlayers()) do
 			if plr ~= player then
@@ -246,9 +246,9 @@ btnESP.MouseButton1Click:Connect(toggleESP)
 -- ==========================================
 -- Nút ESP Cảnh Báo Gần
 -- ==========================================
-local btnWarn = createButton("👤 Cảnh Báo OFF", Color3.fromRGB(200,50,50))
+local btnWarn = createButton("👤 Warning : OFF", Color3.fromRGB(200,50,50))
 local warnEnabled = false
-local warnDistance = 20 -- khoảng cách cảnh báo
+local warnDistance = 30 -- khoảng cách cảnh báo
 
 -- Label cảnh báo (đặt trên cùng màn hình)
 local warnLabel = Instance.new("TextLabel")
@@ -268,7 +268,7 @@ local warnConnection = nil
 local function toggleWarn()
 	warnEnabled = not warnEnabled
 	if warnEnabled then
-		btnWarn.Text = "👤 Cảnh Báo ON"
+		btnWarn.Text = "👤 Warning : ON"
 		btnWarn.BackgroundColor3 = Color3.fromRGB(50,200,50)
 
 		warnConnection = RunService.RenderStepped:Connect(function()
@@ -295,7 +295,7 @@ local function toggleWarn()
 			end
 		end)
 	else
-		btnWarn.Text = "👤 Cảnh Báo OFF"
+		btnWarn.Text = "👤 Warning : OFF"
 		btnWarn.BackgroundColor3 = Color3.fromRGB(200,50,50)
 		if warnConnection then
 			warnConnection:Disconnect()
