@@ -13,7 +13,7 @@ end
 
 -- Khung menu
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,220,0,200)
+frame.Size = UDim2.new(0,220,0,230)
 frame.Position = UDim2.new(0.05,0,0.2,0)
 frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 frame.Active = true
@@ -24,13 +24,13 @@ local frameCorner = Instance.new("UICorner")
 frameCorner.CornerRadius = UDim.new(0,12)
 frameCorner.Parent = frame
 
--- Thêm ScrollingFrame để chứa nút
+-- ScrollingFrame
 local scroll = Instance.new("ScrollingFrame")
 scroll.Size = UDim2.new(1, -10, 1, -10)
 scroll.Position = UDim2.new(0,5,0,5)
 scroll.BackgroundTransparency = 1
 scroll.BorderSizePixel = 0
-scroll.CanvasSize = UDim2.new(0,0,0,0) -- auto cập nhật
+scroll.CanvasSize = UDim2.new(0,0,0,0)
 scroll.ScrollBarThickness = 6
 scroll.Parent = frame
 
@@ -63,9 +63,9 @@ local function createButton(text, color)
 	return btn
 end
 
--- ==============================
+-- ========================================
 -- Nút Nâng
--- ==============================
+-- ========================================
 local btnLift = createButton("⬆️ Nâng OFF", Color3.fromRGB(200,50,50))
 local liftPart, liftEnabled, connection = nil, false, nil
 local speed = 17
@@ -103,9 +103,9 @@ local function toggleLift()
 end
 btnLift.MouseButton1Click:Connect(toggleLift)
 
--- ==============================
+-- ========================================
 -- Nút Đi Trên Không
--- ==============================
+-- ========================================
 local btnFly = createButton("🛑 Đi Trên Không OFF", Color3.fromRGB(200,50,50))
 local flyPart, flyEnabled, flyConnection = nil, false, nil
 local flyHeight, flyRange, switchTime = 3, 1, 1
@@ -155,9 +155,9 @@ local function toggleFly()
 end
 btnFly.MouseButton1Click:Connect(toggleFly)
 
--- ==============================
--- Nút ESP
--- ==============================
+-- ========================================
+-- Nút ESP Highlight
+-- ========================================
 local btnESP = createButton("👀 ESP OFF", Color3.fromRGB(200,50,50))
 local espEnabled = false
 local highlights = {}
@@ -210,3 +210,60 @@ local function toggleESP()
 	end
 end
 btnESP.MouseButton1Click:Connect(toggleESP)
+
+-- ========================================
+-- Nút ESP Cảnh Báo Gần
+-- ========================================
+local btnWarn = createButton("👤 Cảnh Báo OFF", Color3.fromRGB(200,50,50))
+local warnEnabled = false
+local warnDistance = 20 -- khoảng cách cảnh báo
+
+-- Label cảnh báo
+local warnLabel = Instance.new("TextLabel")
+warnLabel.Size = UDim2.new(1,0,0,50)
+warnLabel.Position = UDim2.new(0,0,0.8,0)
+warnLabel.BackgroundTransparency = 1
+warnLabel.TextScaled = true
+warnLabel.TextColor3 = Color3.fromRGB(255,50,50)
+warnLabel.Font = Enum.Font.GothamBold
+warnLabel.Visible = false
+warnLabel.Text = "⚠️ Cẩn thận có người lại gần!"
+warnLabel.Parent = gui
+
+local warnConnection = nil
+
+local function toggleWarn()
+	warnEnabled = not warnEnabled
+	if warnEnabled then
+		btnWarn.Text = "👤 Cảnh Báo ON"
+		btnWarn.BackgroundColor3 = Color3.fromRGB(50,200,50)
+
+		warnConnection = RunService.RenderStepped:Connect(function()
+			local char = player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local hrp = char.HumanoidRootPart
+
+			local danger = false
+			for _,plr in pairs(Players:GetPlayers()) do
+				if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+					local dist = (plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+					if dist <= warnDistance then
+						danger = true
+						break
+					end
+				end
+			end
+
+			warnLabel.Visible = danger
+		end)
+	else
+		btnWarn.Text = "👤 Cảnh Báo OFF"
+		btnWarn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+		if warnConnection then
+			warnConnection:Disconnect()
+			warnConnection = nil
+		end
+		warnLabel.Visible = false
+	end
+end
+btnWarn.MouseButton1Click:Connect(toggleWarn)
