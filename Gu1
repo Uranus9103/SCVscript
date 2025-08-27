@@ -1,0 +1,97 @@
+-- Gắn vào StarterPlayerScripts
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+-- ========== TẠO GIÁ TRỊ TIMER ==========
+-- Nếu chưa có RoundTimer thì tạo luôn
+local timer = ReplicatedStorage:FindFirstChild("RoundTimer")
+if not timer then
+	timer = Instance.new("IntValue")
+	timer.Name = "RoundTimer"
+	timer.Value = 60 -- mặc định 60 giây, bạn chỉnh tùy ý
+	timer.Parent = ReplicatedStorage
+end
+
+-- ========== GUI ==========
+local gui = Instance.new("ScreenGui")
+gui.Name = "BaseControlGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0,150,0,50)
+button.Position = UDim2.new(1,-160,0,100) -- góc trên bên phải
+button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+button.Text = "Bật hệ thống"
+button.Parent = gui
+
+-- ========== BIẾN TRẠNG THÁI ==========
+local enabled = false
+local antiDie = true  -- luôn bật anti die
+
+-- ========== HÀM ANTI DIE ==========
+player.CharacterAdded:Connect(function(char)
+	-- Chặn chết bằng cách hồi máu khi chạm 0
+	local hum = char:WaitForChild("Humanoid")
+	hum.HealthChanged:Connect(function(hp)
+		if antiDie and hp <= 0 then
+			hum.Health = hum.MaxHealth
+		end
+	end)
+end)
+
+-- ========== NÚT BẬT/TẮT ==========
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	if enabled then
+		button.Text = "Tắt hệ thống"
+		button.BackgroundColor3 = Color3.fromRGB(0,255,0)
+	else
+		button.Text = "Bật hệ thống"
+		button.BackgroundColor3 = Color3.fromRGB(0,170,255)
+	end
+end)
+
+-- ========== KHÓA CĂN CỨ ==========
+local baseDoor = workspace:FindFirstChild("BaseDoor") -- thay bằng tên Part cửa căn cứ
+local function lockBase()
+	if baseDoor then
+		if baseDoor:IsA("BasePart") then
+			baseDoor.CanCollide = true
+			baseDoor.Transparency = 0
+		else
+			for _, part in pairs(baseDoor:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+					part.Transparency = 0
+				end
+			end
+		end
+		print("Căn cứ đã khóa!")
+	end
+end
+
+-- ========== LẮNG NGHE TIMER ==========
+timer.Changed:Connect(function(newValue)
+	if enabled and newValue == 10 then
+		-- Reset nhân vật (nhưng vì có Anti Die nên sẽ respawn ngay)
+		if player.Character then
+			player:LoadCharacter()
+		end
+		-- Khóa căn cứ
+		lockBase()
+	end
+end)
+
+-- ========== TEST DEMO TIMER ==========
+-- (Bạn xóa đoạn này nếu bạn có hệ thống round riêng)
+task.spawn(function()
+	while true do
+		task.wait(1)
+		timer.Value -= 1
+		if timer.Value <= 0 then
+			timer.Value = 60 -- reset lại vòng mới
+		end
+	end
+end)
