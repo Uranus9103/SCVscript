@@ -248,7 +248,7 @@ btnESP.MouseButton1Click:Connect(toggleESP)
 -- ==========================================
 local btnWarn = createButton("👤 Warning : OFF", Color3.fromRGB(200,50,50))
 local warnEnabled = false
-local warnDistance = 30 -- khoảng cách cảnh báo
+local warnDistance = 60 -- khoảng cách cảnh báo
 
 -- Label cảnh báo (đặt trên cùng màn hình)
 local warnLabel = Instance.new("TextLabel")
