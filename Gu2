@@ -1,12 +1,11 @@
--- Gắn vào StarterPlayerScripts
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
--- Tìm Timer (do bạn tạo sẵn trong ReplicatedStorage)
+-- Lấy Timer (bạn phải có sẵn IntValue "RoundTimer" trong ReplicatedStorage)
 local timer = ReplicatedStorage:WaitForChild("RoundTimer")
 
--- GUI
+-- Tạo GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "BaseControlGui"
 gui.ResetOnSpawn = false
@@ -14,16 +13,16 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0,150,0,50)
-button.Position = UDim2.new(1,-160,0,100)
+button.Position = UDim2.new(1,-160,0,100) -- góc trên bên phải
 button.BackgroundColor3 = Color3.fromRGB(0,170,255)
 button.Text = "Bật hệ thống"
 button.Parent = gui
 
 -- Trạng thái
 local enabled = false
-local antiDie = true -- bất tử
+local antiDie = true
 
--- AntiDie
+-- AntiDie (bất tử)
 local function setupAntiDie(char)
 	local hum = char:WaitForChild("Humanoid")
 	hum.HealthChanged:Connect(function(hp)
@@ -32,11 +31,8 @@ local function setupAntiDie(char)
 		end
 	end)
 end
-
 player.CharacterAdded:Connect(setupAntiDie)
-if player.Character then
-	setupAntiDie(player.Character)
-end
+if player.Character then setupAntiDie(player.Character) end
 
 -- Nút bật/tắt
 button.MouseButton1Click:Connect(function()
@@ -50,34 +46,48 @@ button.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Khóa căn cứ (teleport tới BaseDoor)
-local baseDoor = workspace:FindFirstChild("BaseDoor") -- thay bằng tên Part căn cứ
+-- Hàm khóa căn cứ + teleport
+local baseDoor = workspace:WaitForChild("BaseDoor") -- căn cứ
 local function lockBase()
-	if baseDoor then
-		for _, plr in pairs(Players:GetPlayers()) do
-			if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-				local hrp = plr.Character.HumanoidRootPart
-				hrp.CFrame = baseDoor.CFrame + Vector3.new(0,5,0)
+	-- Khóa cửa
+	if baseDoor:IsA("BasePart") then
+		baseDoor.CanCollide = true
+		baseDoor.Transparency = 0
+	elseif baseDoor:IsA("Model") then
+		for _, part in pairs(baseDoor:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+				part.Transparency = 0
 			end
 		end
-		print("Tất cả người chơi đã được đưa tới căn cứ và căn cứ đã khóa!")
 	end
+	-- Teleport tất cả player về cửa
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			plr.Character.HumanoidRootPart.CFrame = baseDoor.CFrame + Vector3.new(0,5,0)
+		end
+	end
+	print("Đã reset và đưa tất cả về căn cứ, căn cứ đã khóa!")
 end
 
--- Lắng nghe timer (chỉ quan tâm khi còn 10 giây)
-local lastValue = timer.Value
+-- Reset + khóa khi còn 10s
+local triggered = false
 timer.Changed:Connect(function(newValue)
 	if enabled then
-		if newValue == 10 then
-			-- Reset toàn bộ player
+		if newValue == 10 and not triggered then
+			triggered = true
+			-- Reset tất cả player
 			for _, plr in pairs(Players:GetPlayers()) do
 				if plr.Character then
 					plr:LoadCharacter()
 				end
 			end
-			-- Đưa về căn cứ
+			-- Khóa căn cứ + teleport
+			task.wait(1) -- chờ player spawn lại
 			lockBase()
+		elseif newValue > 10 then
+			-- Reset cờ khi qua round mới
+			triggered = false
 		end
 	end
-	lastValue = newValue
 end)
