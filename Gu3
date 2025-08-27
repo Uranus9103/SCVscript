@@ -1,0 +1,83 @@
+-- Gắn vào StarterPlayerScripts
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+-- Tìm Timer (do bạn tạo sẵn trong ReplicatedStorage)
+local timer = ReplicatedStorage:WaitForChild("RoundTimer")
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "BaseControlGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0,150,0,50)
+button.Position = UDim2.new(1,-160,0,100)
+button.BackgroundColor3 = Color3.fromRGB(0,170,255)
+button.Text = "Bật hệ thống"
+button.Parent = gui
+
+-- Trạng thái
+local enabled = false
+local antiDie = true -- bất tử
+
+-- AntiDie
+local function setupAntiDie(char)
+	local hum = char:WaitForChild("Humanoid")
+	hum.HealthChanged:Connect(function(hp)
+		if antiDie and hp <= 0 then
+			hum.Health = hum.MaxHealth
+		end
+	end)
+end
+
+player.CharacterAdded:Connect(setupAntiDie)
+if player.Character then
+	setupAntiDie(player.Character)
+end
+
+-- Nút bật/tắt
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	if enabled then
+		button.Text = "Tắt hệ thống"
+		button.BackgroundColor3 = Color3.fromRGB(0,255,0)
+	else
+		button.Text = "Bật hệ thống"
+		button.BackgroundColor3 = Color3.fromRGB(0,170,255)
+	end
+end)
+
+-- Khóa căn cứ (teleport tới BaseDoor)
+local baseDoor = workspace:FindFirstChild("BaseDoor") -- thay bằng tên Part căn cứ
+local function lockBase()
+	if baseDoor then
+		for _, plr in pairs(Players:GetPlayers()) do
+			if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+				local hrp = plr.Character.HumanoidRootPart
+				hrp.CFrame = baseDoor.CFrame + Vector3.new(0,5,0)
+			end
+		end
+		print("Tất cả người chơi đã được đưa tới căn cứ và căn cứ đã khóa!")
+	end
+end
+
+-- Lắng nghe timer (chỉ quan tâm khi còn 10 giây)
+local lastValue = timer.Value
+timer.Changed:Connect(function(newValue)
+	if enabled then
+		if newValue == 10 then
+			-- Reset toàn bộ player
+			for _, plr in pairs(Players:GetPlayers()) do
+				if plr.Character then
+					plr:LoadCharacter()
+				end
+			end
+			-- Đưa về căn cứ
+			lockBase()
+		end
+	end
+	lastValue = newValue
+end)
