@@ -1,0 +1,147 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Trạng thái bay
+local autoFlying = false
+local currentTween
+
+-- 🔹 Hàm tìm Part căn cứ của một người
+local function getHomePart(targetName)
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("TextLabel") then
+			local text = string.lower(obj.Text)
+			if string.find(text, string.lower(targetName)) then
+				local guiParent = obj:FindFirstAncestorWhichIsA("BillboardGui") or obj:FindFirstAncestorWhichIsA("SurfaceGui")
+				if guiParent and guiParent.Adornee then
+					return guiParent.Adornee
+				elseif guiParent and guiParent.Parent:IsA("Part") then
+					return guiParent.Parent
+				end
+			end
+		end
+	end
+	return nil
+end
+
+-- 🔹 Tween bay mượt
+local function tweenTo(targetPos)
+	if not humanoidRootPart then return end
+	if currentTween then currentTween:Cancel() end
+
+	local distance = (targetPos - humanoidRootPart.Position).Magnitude
+	local flyTime = distance / 60
+	local tweenInfo = TweenInfo.new(flyTime, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+	local goal = { CFrame = CFrame.new(targetPos) }
+	currentTween = TweenService:Create(humanoidRootPart, tweenInfo, goal)
+	currentTween:Play()
+	return currentTween
+end
+
+-- 🔹 Bay bằng Pathfinding
+local function flyPath(homePart)
+	if not humanoidRootPart or not homePart then return end
+
+	local path = PathfindingService:CreatePath({
+		AgentRadius = 5,
+		AgentHeight = 6,
+		AgentCanJump = true,
+		AgentCanClimb = true
+	})
+
+	path:ComputeAsync(humanoidRootPart.Position, homePart.Position + Vector3.new(0,5,0))
+
+	if path.Status == Enum.PathStatus.Complete then
+		local waypoints = path:GetWaypoints()
+		for _, waypoint in ipairs(waypoints) do
+			if not autoFlying then break end
+			local target = waypoint.Position + Vector3.new(0, 5, 0)
+			local tween = tweenTo(target)
+			tween.Completed:Wait()
+		end
+		autoFlying = false
+	else
+		warn("Không tìm thấy đường đến nhà!")
+		autoFlying = false
+	end
+end
+
+-- 🔹 Tạo GUI danh sách người chơi
+local gui = Instance.new("ScreenGui")
+gui.Name = "HomeListGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 300)
+frame.Position = UDim2.new(0, 20, 0, 100)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.Visible = false
+frame.Parent = gui
+
+local uiList = Instance.new("UIListLayout")
+uiList.Parent = frame
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 160, 0, 40)
+toggleButton.Position = UDim2.new(0, 20, 0, 50)
+toggleButton.Text = "Danh sách nhà"
+toggleButton.BackgroundColor3 = Color3.fromRGB(50,150,250)
+toggleButton.Parent = gui
+
+-- 🔹 Hàm cập nhật danh sách người chơi
+local function updatePlayerList()
+	frame:ClearAllChildren()
+	uiList.Parent = frame
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, 0, 0, 40)
+		btn.Text = plr.Name
+		btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+		btn.TextColor3 = Color3.fromRGB(255,255,255)
+		btn.Parent = frame
+
+		btn.MouseButton1Click:Connect(function()
+			if autoFlying then
+				if currentTween then currentTween:Cancel() end
+				autoFlying = false
+				btn.Text = plr.Name
+				return
+			end
+
+			local homePart = getHomePart(plr.Name)
+			if not homePart then
+				btn.Text = "Không có nhà!"
+				return
+			end
+			btn.Text = "Đang bay..."
+			autoFlying = true
+			flyPath(homePart)
+			btn.Text = plr.Name
+		end)
+	end
+end
+
+-- Toggle hiện menu
+toggleButton.MouseButton1Click:Connect(function()
+	frame.Visible = not frame.Visible
+	if frame.Visible then
+		updatePlayerList()
+	end
+end)
+
+-- Cập nhật khi có người vào/ra
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+
+-- Nếu nhân vật respawn
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+end)
