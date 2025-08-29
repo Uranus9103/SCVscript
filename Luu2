@@ -1,23 +1,26 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local PathfindingService = game:GetService("PathfindingService")
-local player = Players.LocalPlayer
 
+local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
--- 🔹 Tìm căn cứ theo tên
+-- 🔹 Hàm tìm căn cứ theo tên trên biển "Căn cứ của ..."
 local function getHomePart()
 	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+		if obj:IsA("TextLabel") then
 			local text = string.lower(obj.Text)
 			if string.find(text, string.lower(player.Name)) or string.find(text, string.lower(player.DisplayName)) then
-				-- Lấy Part cha (căn cứ)
-				local base = obj:FindFirstAncestorOfClass("Model") or obj:FindFirstAncestorOfClass("Part")
-				if base and base:IsA("Model") and base:FindFirstChild("PrimaryPart") then
-					return base.PrimaryPart
-				elseif base and base:IsA("Part") then
-					return base
+				-- Tìm Part gắn GUI
+				local guiParent = obj:FindFirstAncestorWhichIsA("BillboardGui") or obj:FindFirstAncestorWhichIsA("SurfaceGui")
+				if guiParent and guiParent.Adornee then
+					return guiParent.Adornee -- chính là Part treo cái bảng tên
+				else
+					-- nếu không có Adornee, thử lấy cha của GUI
+					if guiParent and guiParent.Parent:IsA("Part") then
+						return guiParent.Parent
+					end
 				end
 			end
 		end
@@ -25,7 +28,7 @@ local function getHomePart()
 	return nil
 end
 
--- GUI
+-- 🔹 Tạo GUI nút bấm
 local gui = Instance.new("ScreenGui")
 gui.Name = "HomeGui"
 gui.ResetOnSpawn = false
@@ -42,7 +45,7 @@ button.Parent = gui
 local autoFlying = false
 local currentTween
 
--- Hàm tween mượt
+-- 🔹 Tween bay mượt
 local function tweenTo(targetPos)
 	if not humanoidRootPart then return end
 	if currentTween then currentTween:Cancel() end
@@ -56,7 +59,7 @@ local function tweenTo(targetPos)
 	return currentTween
 end
 
--- Hàm bay theo path
+-- 🔹 Bay bằng Pathfinding (tự tìm đường tránh vật cản)
 local function flyPath(homePart)
 	if not humanoidRootPart or not homePart then return end
 
@@ -87,7 +90,7 @@ local function flyPath(homePart)
 	end
 end
 
--- Nút bật/tắt
+-- 🔹 Bật/tắt bằng nút
 button.MouseButton1Click:Connect(function()
 	if autoFlying then
 		if currentTween then currentTween:Cancel() end
@@ -107,7 +110,7 @@ button.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Nếu nhân vật respawn
+-- 🔹 Nếu nhân vật respawn
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
