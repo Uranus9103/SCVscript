@@ -1,14 +1,28 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local PathfindingService = game:GetService("PathfindingService")
-
 local player = Players.LocalPlayer
+
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
--- 🔹 Lấy nhà riêng của người chơi (Part trong Workspace tên: Home_[UserId])
+-- 🔹 Tìm căn cứ theo tên
 local function getHomePart()
-	return workspace:FindFirstChild("Home_" .. player.UserId)
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+			local text = string.lower(obj.Text)
+			if string.find(text, string.lower(player.Name)) or string.find(text, string.lower(player.DisplayName)) then
+				-- Lấy Part cha (căn cứ)
+				local base = obj:FindFirstAncestorOfClass("Model") or obj:FindFirstAncestorOfClass("Part")
+				if base and base:IsA("Model") and base:FindFirstChild("PrimaryPart") then
+					return base.PrimaryPart
+				elseif base and base:IsA("Part") then
+					return base
+				end
+			end
+		end
+	end
+	return nil
 end
 
 -- GUI
@@ -18,7 +32,7 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 140, 0, 50)
+button.Size = UDim2.new(0, 160, 0, 50)
 button.Position = UDim2.new(0, 20, 0, 200)
 button.Text = "Tự bay về nhà"
 button.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
@@ -34,7 +48,7 @@ local function tweenTo(targetPos)
 	if currentTween then currentTween:Cancel() end
 
 	local distance = (targetPos - humanoidRootPart.Position).Magnitude
-	local flyTime = distance / 60 -- chỉnh tốc độ
+	local flyTime = distance / 60 -- tốc độ bay
 	local tweenInfo = TweenInfo.new(flyTime, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
 	local goal = { CFrame = CFrame.new(targetPos) }
 	currentTween = TweenService:Create(humanoidRootPart, tweenInfo, goal)
@@ -57,15 +71,12 @@ local function flyPath(homePart)
 
 	if path.Status == Enum.PathStatus.Complete then
 		local waypoints = path:GetWaypoints()
-
-		-- Bay qua từng waypoint
 		for _, waypoint in ipairs(waypoints) do
 			if not autoFlying then break end
-			local target = waypoint.Position + Vector3.new(0, 5, 0) -- bay cao hơn 5
+			local target = waypoint.Position + Vector3.new(0, 5, 0)
 			local tween = tweenTo(target)
 			tween.Completed:Wait()
 		end
-
 		if autoFlying then
 			button.Text = "Đã về nhà"
 			autoFlying = false
@@ -79,7 +90,6 @@ end
 -- Nút bật/tắt
 button.MouseButton1Click:Connect(function()
 	if autoFlying then
-		-- Hủy bay
 		if currentTween then currentTween:Cancel() end
 		button.Text = "Tự bay về nhà"
 		button.BackgroundColor3 = Color3.fromRGB(50,200,50)
@@ -90,8 +100,6 @@ button.MouseButton1Click:Connect(function()
 			button.Text = "Không có nhà!"
 			return
 		end
-
-		-- Bắt đầu bay
 		button.Text = "Đang bay..."
 		button.BackgroundColor3 = Color3.fromRGB(200,50,50)
 		autoFlying = true
