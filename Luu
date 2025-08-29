@@ -1,0 +1,106 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- 🔹 Lấy nhà riêng của người chơi (Part trong Workspace tên: Home_[UserId])
+local function getHomePart()
+	return workspace:FindFirstChild("Home_" .. player.UserId)
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "HomeGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 140, 0, 50)
+button.Position = UDim2.new(0, 20, 0, 200)
+button.Text = "Tự bay về nhà"
+button.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+button.Parent = gui
+
+-- Trạng thái
+local autoFlying = false
+local currentTween
+
+-- Hàm tween mượt
+local function tweenTo(targetPos)
+	if not humanoidRootPart then return end
+	if currentTween then currentTween:Cancel() end
+
+	local distance = (targetPos - humanoidRootPart.Position).Magnitude
+	local flyTime = distance / 60 -- chỉnh tốc độ
+	local tweenInfo = TweenInfo.new(flyTime, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+	local goal = { CFrame = CFrame.new(targetPos) }
+	currentTween = TweenService:Create(humanoidRootPart, tweenInfo, goal)
+	currentTween:Play()
+	return currentTween
+end
+
+-- Hàm bay theo path
+local function flyPath(homePart)
+	if not humanoidRootPart or not homePart then return end
+
+	local path = PathfindingService:CreatePath({
+		AgentRadius = 5,
+		AgentHeight = 6,
+		AgentCanJump = true,
+		AgentCanClimb = true
+	})
+
+	path:ComputeAsync(humanoidRootPart.Position, homePart.Position + Vector3.new(0,5,0))
+
+	if path.Status == Enum.PathStatus.Complete then
+		local waypoints = path:GetWaypoints()
+
+		-- Bay qua từng waypoint
+		for _, waypoint in ipairs(waypoints) do
+			if not autoFlying then break end
+			local target = waypoint.Position + Vector3.new(0, 5, 0) -- bay cao hơn 5
+			local tween = tweenTo(target)
+			tween.Completed:Wait()
+		end
+
+		if autoFlying then
+			button.Text = "Đã về nhà"
+			autoFlying = false
+		end
+	else
+		button.Text = "Không tìm thấy đường!"
+		autoFlying = false
+	end
+end
+
+-- Nút bật/tắt
+button.MouseButton1Click:Connect(function()
+	if autoFlying then
+		-- Hủy bay
+		if currentTween then currentTween:Cancel() end
+		button.Text = "Tự bay về nhà"
+		button.BackgroundColor3 = Color3.fromRGB(50,200,50)
+		autoFlying = false
+	else
+		local homePart = getHomePart()
+		if not homePart then
+			button.Text = "Không có nhà!"
+			return
+		end
+
+		-- Bắt đầu bay
+		button.Text = "Đang bay..."
+		button.BackgroundColor3 = Color3.fromRGB(200,50,50)
+		autoFlying = true
+		flyPath(homePart)
+	end
+end)
+
+-- Nếu nhân vật respawn
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+end)
