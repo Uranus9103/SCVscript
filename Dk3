@@ -77,9 +77,10 @@ local function startCountdown(humanoid)
 	end
 
 	countdownThread = task.spawn(function()
-		while autoEnabled and humanoid and humanoid.Health > 0 do
+		while autoEnabled and (not humanoid or humanoid.Health > 0) do
 			for i = respawnTime,1,-1 do
-				if not autoEnabled or not humanoid or humanoid.Health <= 0 then break end
+				if not autoEnabled then break end
+				if humanoid and humanoid.Health <= 0 then break end
 				countdown = i
 				statusLabel.Text = "Reset sau: "..countdown.."s"
 				task.wait(1)
@@ -97,6 +98,9 @@ local function startAuto()
 	toggleBtn.Text = "⏹ Tắt Auto"
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
 	statusLabel.Text = "Trạng thái: Bật"
+
+	-- ✅ Ngay khi bật, bắt đầu đếm trước (chưa reset liền)
+	startCountdown()
 end
 
 local function stopAuto()
@@ -132,7 +136,7 @@ player.CharacterAdded:Connect(function(char)
 				if connection then connection:Disconnect() end
 				statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
 
-				-- 🔥 Bắt đầu đếm ngay sau khi chạy thẳng xong
+				-- 🔥 Sau khi chạy thẳng xong, mới tiếp tục đếm
 				startCountdown(humanoid)
 				return
 			end
