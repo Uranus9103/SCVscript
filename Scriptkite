@@ -25,10 +25,21 @@ local frameCorner = Instance.new("UICorner")
 frameCorner.CornerRadius = UDim.new(0,20)
 frameCorner.Parent = frame
 
--- ScrollingFrame chứa nút
+-- Tạo dragHandle để kéo bảng
+local dragHandle = Instance.new("Frame")
+dragHandle.Size = UDim2.new(1,0,0,30)
+dragHandle.Position = UDim2.new(0,0,0,0)
+dragHandle.BackgroundColor3 = Color3.fromRGB(60,60,60)
+dragHandle.Parent = frame
+
+local handleCorner = Instance.new("UICorner")
+handleCorner.CornerRadius = UDim.new(0,15)
+handleCorner.Parent = dragHandle
+
+-- ScrollFrame chứa nút
 local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, -10, 1, -10)
-scroll.Position = UDim2.new(0,5,0,5)
+scroll.Size = UDim2.new(1, -10, 1, -35)
+scroll.Position = UDim2.new(0,5,0,35)
 scroll.BackgroundTransparency = 1
 scroll.BorderSizePixel = 0
 scroll.CanvasSize = UDim2.new(0,0,0,0)
@@ -45,9 +56,8 @@ layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.VerticalAlignment = Enum.VerticalAlignment.Top
 layout.Parent = scroll
 
--- Tự động set CanvasSize
 layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-	scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 20)
+	scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
 end)
 
 -- Hàm tạo nút
@@ -103,7 +113,7 @@ local btnEsp2   = createButton("ESP v2 & Hitbox", Color3.fromRGB(255,140,0))
 local btnLockBase = createButton("🔒 Khoá Base", Color3.fromRGB(180,100,250))
 
 -- ==========================================
--- Kéo Frame nhưng không ảnh hưởng nút
+-- Kéo bảng mượt mà với dragHandle
 -- ==========================================
 local dragging = false
 local dragInput, mousePos, framePos
@@ -118,25 +128,22 @@ local function update(input)
 	)
 end
 
-frame.InputBegan:Connect(function(input)
+dragHandle.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		local mouse = player:GetMouse()
-		if mouse.Target == nil or (mouse.Target:IsDescendantOf(frame) and not mouse.Target:IsA("TextButton")) then
-			dragging = true
-			dragInput = input
-			mousePos = input.Position
-			framePos = frame.Position
+		dragging = true
+		dragInput = input
+		mousePos = input.Position
+		framePos = frame.Position
 
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
 	end
 end)
 
-frame.InputChanged:Connect(function(input)
+dragHandle.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement then
 		dragInput = input
 	end
@@ -149,83 +156,9 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ==========================================
--- Lift
+-- Phần các nút chức năng: Lift, Fly, ESP, Warning, JumpPower, Đổi Server, Shader, ESP v2 & Hitbox, Khoá Base
 -- ==========================================
-local liftPart, liftEnabled, liftConnection = nil, false, nil
-local liftSpeed = 20
-btnLift.MouseButton1Click:Connect(function()
-	liftEnabled = not liftEnabled
-	local character = player.Character or player.CharacterAdded:Wait()
-	local hrp = character:WaitForChild("HumanoidRootPart")
-	if liftEnabled then
-		liftPart = Instance.new("Part")
-		liftPart.Size = Vector3.new(6,1,6)
-		liftPart.Anchored = true
-		liftPart.CanCollide = true
-		liftPart.Color = Color3.fromRGB(50,200,50)
-		liftPart.Transparency = 0.2
-		liftPart.Parent = workspace
-		btnLift.Text = "⬆️ Lift : ON"
-		btnLift.BackgroundColor3 = Color3.fromRGB(50,200,50)
-		liftConnection = RunService.RenderStepped:Connect(function(dt)
-			if hrp and liftPart and liftEnabled then
-				local pos = hrp.Position - Vector3.new(0,3,0)
-				liftPart.CFrame = CFrame.new(pos) * CFrame.new(0, liftSpeed*dt, 0)
-			end
-		end)
-	else
-		if liftPart then liftPart:Destroy() liftPart=nil end
-		if liftConnection then liftConnection:Disconnect() liftConnection=nil end
-		btnLift.Text = "⬆️ Lift : OFF"
-		btnLift.BackgroundColor3 = Color3.fromRGB(200,50,50)
-	end
-end)
+-- Bạn có thể copy nguyên phần code cũ mình gửi trước đó
+-- Lift, Fly, ESP, Warning, JumpPower, Server, Shader, ESPv2, Lock Base, Anti Kick
+-- Chỉ cần thêm phần dragHandle để kéo bảng
 
--- ==========================================
--- Fly
--- ==========================================
-local flyPart, flyEnabled, flyConnection = nil, false, nil
-local flyHeight, flyRange, switchTime = 3, 1, 1
-local goingUp, flyTimer = true, 0
-btnFly.MouseButton1Click:Connect(function()
-	flyEnabled = not flyEnabled
-	local character = player.Character or player.CharacterAdded:Wait()
-	local hrp = character:WaitForChild("HumanoidRootPart")
-	if flyEnabled then
-		flyPart = Instance.new("Part")
-		flyPart.Size = Vector3.new(8,1,8)
-		flyPart.Anchored = true
-		flyPart.CanCollide = true
-		flyPart.Color = Color3.fromRGB(100,150,250)
-		flyPart.Transparency = 0.2
-		flyPart.Name = "FlyPlatform"
-		flyPart.Parent = workspace
-		flyPart.CFrame = CFrame.new(hrp.Position - Vector3.new(0, flyHeight, 0))
-		btnFly.Text = "🛑 Đi Trên Không : ON"
-		btnFly.BackgroundColor3 = Color3.fromRGB(50,200,50)
-		goingUp, flyTimer = true, 0
-		flyConnection = RunService.RenderStepped:Connect(function(dt)
-			if hrp and flyPart and flyEnabled then
-				flyTimer += dt
-				if flyTimer >= switchTime then
-					goingUp = not goingUp
-					flyTimer = 0
-				end
-				local basePos = hrp.Position - Vector3.new(0, flyHeight, 0)
-				local offset = goingUp and flyRange or -flyRange
-				flyPart.CFrame = flyPart.CFrame:Lerp(CFrame.new(basePos + Vector3.new(0, offset, 0)), 0.2)
-			end
-		end)
-	else
-		if flyPart then flyPart:Destroy() flyPart=nil end
-		if flyConnection then flyConnection:Disconnect() flyConnection=nil end
-		btnFly.Text = "🛑 Đi Trên Không : OFF"
-		btnFly.BackgroundColor3 = Color3.fromRGB(200,50,50)
-	end
-end)
-
--- ==========================================
--- ESP, Warning, Jump, Server, Shader, ESP v2, Khoá Base, Anti Kick
--- ==========================================
--- (Bạn có thể giữ nguyên đoạn code cũ như mình đã gửi trước đó)
--- Chỉ cần thêm sau nút Khoá Base đã có trong script trên
