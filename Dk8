@@ -87,7 +87,7 @@ local function stopAuto()
 	statusLabel.Text = "Trạng thái: Tắt"
 end
 
--- Khi nhân vật spawn thì script tự điều khiển về Base
+-- Khi nhân vật spawn thì script tự điều khiển
 player.CharacterAdded:Connect(function(char)
 	if not autoEnabled then return end
 	task.wait(1)
@@ -96,19 +96,20 @@ player.CharacterAdded:Connect(function(char)
 	local hrp = char:WaitForChild("HumanoidRootPart")
 
 	---------------------------------------------------
-	-- ✨ Thêm chức năng tự đi thẳng 7 giây sau reset
+	-- ✨ Tự đi thẳng 7 giây sau khi spawn
 	---------------------------------------------------
 	task.spawn(function()
 		if humanoid and hrp then
+			statusLabel.Text = "🏃 Đang chạy thẳng 7s..."
 			local startTime = tick()
 			while tick() - startTime < 7 and humanoid.Health > 0 and autoEnabled do
-				-- ép nhân vật di chuyển theo hướng nhìn hiện tại
-				local moveDir = hrp.CFrame.LookVector
-				humanoid:Move(moveDir)
+				-- đi thẳng về hướng nhân vật đang nhìn
+				humanoid:Move(Vector3.new(0, 0, -1), true)
 				task.wait(0.1)
 			end
 			-- dừng lại
-			humanoid:Move(Vector3.new(0,0,0))
+			humanoid:Move(Vector3.new(0,0,0), true)
+			statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
 		end
 	end)
 
