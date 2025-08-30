@@ -5,7 +5,7 @@ local player = Players.LocalPlayer
 
 -- Cấu hình
 local respawnTime = 20
-local moveDuration = 4
+local moveDuration = 3
 local autoEnabled = false
 local countdown = respawnTime
 
