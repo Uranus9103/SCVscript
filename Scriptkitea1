@@ -1,0 +1,231 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+
+-- GUI
+local gui = player:WaitForChild("PlayerGui"):FindFirstChild("LiftGui")
+if not gui then
+	gui = Instance.new("ScreenGui")
+	gui.Name = "LiftGui"
+	gui.ResetOnSpawn = false 
+	gui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- Khung menu giống điện thoại
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,260,0,300)
+frame.Position = UDim2.new(0.05,0,0.1,0)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.Active = true
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0,20)
+frameCorner.Parent = frame
+
+-- ScrollingFrame chứa nút
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 1, -10)
+scroll.Position = UDim2.new(0,5,0,5)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.new(0,0,0,0)
+scroll.ScrollBarThickness = 10
+scroll.Parent = frame
+
+-- Layout 2 cột
+local layout = Instance.new("UIGridLayout")
+layout.CellSize = UDim2.new(0.45,0,0,50)
+layout.CellPadding = UDim2.new(0.05,0,0.05,0)
+layout.FillDirection = Enum.FillDirection.Horizontal
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.VerticalAlignment = Enum.VerticalAlignment.Top
+layout.Parent = scroll
+
+-- Tự động set CanvasSize
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 20)
+end)
+
+-- Hàm tạo nút
+local function createButton(text, color)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0,0,0,0)
+	btn.Text = text
+	btn.TextScaled = true
+	btn.BackgroundColor3 = color
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	btn.Font = Enum.Font.GothamBold
+	btn.Parent = scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0,12)
+	corner.Parent = btn
+
+	return btn
+end
+
+-- Nút Ẩn/Hiện Menu
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0,100,0,40)
+toggleBtn.Position = UDim2.new(0.75,0,0.05,0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(80,80,200)
+toggleBtn.Text = "APEX HUB"
+toggleBtn.TextScaled = true
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Parent = gui
+toggleBtn.Active = true
+toggleBtn.Draggable = true
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0,8)
+btnCorner.Parent = toggleBtn
+
+local menuVisible = true
+toggleBtn.MouseButton1Click:Connect(function()
+	menuVisible = not menuVisible
+	frame.Visible = menuVisible
+end)
+
+-- Các nút
+local btnLift   = createButton("⬆️ Lift : OFF", Color3.fromRGB(200,50,50))
+local btnFly    = createButton("🛑 Đi Trên Không : OFF", Color3.fromRGB(200,50,50))
+local btnESP    = createButton("👀 ESP OFF", Color3.fromRGB(200,50,50))
+local btnWarn   = createButton("👤 Warning : OFF", Color3.fromRGB(200,50,50))
+local btnJump   = createButton("🟢 JumpPower : OFF", Color3.fromRGB(200,50,50))
+local btnServer = createButton("🌍 Đổi Server", Color3.fromRGB(80,150,250))
+local btnShader = createButton("✨ Shader & Fix Lag : OFF", Color3.fromRGB(200,50,50))
+local btnEsp2   = createButton("ESP v2 & Hitbox", Color3.fromRGB(255,140,0))
+local btnLockBase = createButton("🔒 Khoá Base", Color3.fromRGB(180,100,250))
+
+-- ==========================================
+-- Kéo Frame nhưng không ảnh hưởng nút
+-- ==========================================
+local dragging = false
+local dragInput, mousePos, framePos
+
+local function update(input)
+	local delta = input.Position - mousePos
+	frame.Position = UDim2.new(
+		framePos.X.Scale,
+		framePos.X.Offset + delta.X,
+		framePos.Y.Scale,
+		framePos.Y.Offset + delta.Y
+	)
+end
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local mouse = player:GetMouse()
+		if mouse.Target == nil or (mouse.Target:IsDescendantOf(frame) and not mouse.Target:IsA("TextButton")) then
+			dragging = true
+			dragInput = input
+			mousePos = input.Position
+			framePos = frame.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end
+end)
+
+frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if dragging and dragInput then
+		update(dragInput)
+	end
+end)
+
+-- ==========================================
+-- Lift
+-- ==========================================
+local liftPart, liftEnabled, liftConnection = nil, false, nil
+local liftSpeed = 20
+btnLift.MouseButton1Click:Connect(function()
+	liftEnabled = not liftEnabled
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+	if liftEnabled then
+		liftPart = Instance.new("Part")
+		liftPart.Size = Vector3.new(6,1,6)
+		liftPart.Anchored = true
+		liftPart.CanCollide = true
+		liftPart.Color = Color3.fromRGB(50,200,50)
+		liftPart.Transparency = 0.2
+		liftPart.Parent = workspace
+		btnLift.Text = "⬆️ Lift : ON"
+		btnLift.BackgroundColor3 = Color3.fromRGB(50,200,50)
+		liftConnection = RunService.RenderStepped:Connect(function(dt)
+			if hrp and liftPart and liftEnabled then
+				local pos = hrp.Position - Vector3.new(0,3,0)
+				liftPart.CFrame = CFrame.new(pos) * CFrame.new(0, liftSpeed*dt, 0)
+			end
+		end)
+	else
+		if liftPart then liftPart:Destroy() liftPart=nil end
+		if liftConnection then liftConnection:Disconnect() liftConnection=nil end
+		btnLift.Text = "⬆️ Lift : OFF"
+		btnLift.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	end
+end)
+
+-- ==========================================
+-- Fly
+-- ==========================================
+local flyPart, flyEnabled, flyConnection = nil, false, nil
+local flyHeight, flyRange, switchTime = 3, 1, 1
+local goingUp, flyTimer = true, 0
+btnFly.MouseButton1Click:Connect(function()
+	flyEnabled = not flyEnabled
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+	if flyEnabled then
+		flyPart = Instance.new("Part")
+		flyPart.Size = Vector3.new(8,1,8)
+		flyPart.Anchored = true
+		flyPart.CanCollide = true
+		flyPart.Color = Color3.fromRGB(100,150,250)
+		flyPart.Transparency = 0.2
+		flyPart.Name = "FlyPlatform"
+		flyPart.Parent = workspace
+		flyPart.CFrame = CFrame.new(hrp.Position - Vector3.new(0, flyHeight, 0))
+		btnFly.Text = "🛑 Đi Trên Không : ON"
+		btnFly.BackgroundColor3 = Color3.fromRGB(50,200,50)
+		goingUp, flyTimer = true, 0
+		flyConnection = RunService.RenderStepped:Connect(function(dt)
+			if hrp and flyPart and flyEnabled then
+				flyTimer += dt
+				if flyTimer >= switchTime then
+					goingUp = not goingUp
+					flyTimer = 0
+				end
+				local basePos = hrp.Position - Vector3.new(0, flyHeight, 0)
+				local offset = goingUp and flyRange or -flyRange
+				flyPart.CFrame = flyPart.CFrame:Lerp(CFrame.new(basePos + Vector3.new(0, offset, 0)), 0.2)
+			end
+		end)
+	else
+		if flyPart then flyPart:Destroy() flyPart=nil end
+		if flyConnection then flyConnection:Disconnect() flyConnection=nil end
+		btnFly.Text = "🛑 Đi Trên Không : OFF"
+		btnFly.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	end
+end)
+
+-- ==========================================
+-- ESP, Warning, Jump, Server, Shader, ESP v2, Khoá Base, Anti Kick
+-- ==========================================
+-- (Bạn có thể giữ nguyên đoạn code cũ như mình đã gửi trước đó)
+-- Chỉ cần thêm sau nút Khoá Base đã có trong script trên
