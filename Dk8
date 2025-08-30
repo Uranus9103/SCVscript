@@ -1,4 +1,5 @@
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
 -- Thời gian mặc định
@@ -102,14 +103,19 @@ player.CharacterAdded:Connect(function(char)
 		if humanoid and hrp then
 			statusLabel.Text = "🏃 Đang chạy thẳng 7s..."
 			local startTime = tick()
-			while tick() - startTime < 7 and humanoid.Health > 0 and autoEnabled do
-				-- đi thẳng về hướng nhân vật đang nhìn
-				humanoid:Move(Vector3.new(0, 0, -1), true)
-				task.wait(0.1)
-			end
-			-- dừng lại
-			humanoid:Move(Vector3.new(0,0,0), true)
-			statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
+
+			local connection
+			connection = RunService.Heartbeat:Connect(function()
+				if tick() - startTime < 7 and humanoid.Health > 0 and autoEnabled then
+					-- ép nhân vật di chuyển về phía trước
+					humanoid:Move(Vector3.new(0, 0, -1), true)
+				else
+					-- hết 7s thì ngắt kết nối và dừng
+					humanoid:Move(Vector3.new(0,0,0), true)
+					if connection then connection:Disconnect() end
+					statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
+				end
+			end)
 		end
 	end)
 
