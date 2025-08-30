@@ -11,7 +11,7 @@ local countdown = respawnTime
 --====================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "BaseSystemGUI"
-ScreenGui.ResetOnSpawn = false  -- ❌ Không biến mất khi reset
+ScreenGui.ResetOnSpawn = false -- giữ lại UI khi reset
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Bảng chính
@@ -100,16 +100,23 @@ player.CharacterAdded:Connect(function(char)
 	local humanoid = char:WaitForChild("Humanoid")
 	local hrp = char:WaitForChild("HumanoidRootPart")
 
-	-- Tự động di chuyển (không cần người chơi bấm phím)
-	humanoid:MoveTo(base.Position)
+	-- Tính vị trí đích (cao hơn mặt đất 3 đơn vị để chắc chắn đi được)
+	local targetPos = base.Position + Vector3.new(0,3,0)
 
-	humanoid.MoveToFinished:Connect(function(reached)
-		if reached then
-			local door = base:FindFirstChild("Door")
-			if door and door:IsA("Part") then
-				door.CanCollide = true
-				door.Transparency = 0
-				print("Base của "..player.Name.." đã được khóa!")
+	-- Lặp liên tục cho đến khi tới nơi
+	task.spawn(function()
+		while autoEnabled and humanoid and humanoid.Health > 0 do
+			humanoid:MoveTo(targetPos)
+			local reached = humanoid.MoveToFinished:Wait()
+			if reached then
+				-- Khóa cửa
+				local door = base:FindFirstChild("Door")
+				if door and door:IsA("Part") then
+					door.CanCollide = true
+					door.Transparency = 0
+					print("Base của "..player.Name.." đã được khóa!")
+				end
+				break
 			end
 		end
 	end)
