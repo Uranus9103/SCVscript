@@ -82,7 +82,7 @@ local function startCountdown(humanoid)
 				if not autoEnabled then break end
 				if humanoid and humanoid.Health <= 0 then break end
 				countdown = i
-				statusLabel.Text = "Reset sau: "..countdown.."s"
+				statusLabel.Text = "⏳ Reset sau: "..countdown.."s"
 				task.wait(1)
 			end
 			if autoEnabled and humanoid and humanoid.Health > 0 then
@@ -99,7 +99,7 @@ local function startAuto()
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
 	statusLabel.Text = "Trạng thái: Bật"
 
-	-- ✅ Ngay khi bật, bắt đầu đếm trước (chưa reset liền)
+	-- ✅ Lần đầu tiên: bắt đầu đếm luôn
 	startCountdown()
 end
 
@@ -136,7 +136,7 @@ player.CharacterAdded:Connect(function(char)
 				if connection then connection:Disconnect() end
 				statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
 
-				-- 🔥 Sau khi chạy thẳng xong, mới tiếp tục đếm
+				-- 🔥 Sau khi chạy xong, bắt đầu đếm tiếp
 				startCountdown(humanoid)
 				return
 			end
