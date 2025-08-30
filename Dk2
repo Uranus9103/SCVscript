@@ -7,6 +7,7 @@ local respawnTime = 20
 local autoEnabled = false
 local countdown = respawnTime
 local moveDuration = 7 -- thời gian tự chạy thẳng (giây)
+local countdownThread
 
 --====================================
 -- GUI
@@ -70,8 +71,29 @@ statusLabel.Text = "Trạng thái: Tắt"
 --====================================
 -- Chức năng
 --====================================
+local function startCountdown(humanoid)
+	if countdownThread then
+		task.cancel(countdownThread)
+	end
+
+	countdownThread = task.spawn(function()
+		while autoEnabled and humanoid and humanoid.Health > 0 do
+			for i = respawnTime,1,-1 do
+				if not autoEnabled or not humanoid or humanoid.Health <= 0 then break end
+				countdown = i
+				statusLabel.Text = "Reset sau: "..countdown.."s"
+				task.wait(1)
+			end
+			if autoEnabled and humanoid and humanoid.Health > 0 then
+				humanoid.Health = 0 -- reset sau khi hết giờ
+			end
+		end
+	end)
+end
+
 local function startAuto()
 	autoEnabled = true
+	countdown = respawnTime
 	toggleBtn.Text = "⏹ Tắt Auto"
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
 	statusLabel.Text = "Trạng thái: Bật"
@@ -82,6 +104,10 @@ local function stopAuto()
 	toggleBtn.Text = "▶️ Bật Auto"
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
 	statusLabel.Text = "Trạng thái: Tắt"
+	if countdownThread then
+		task.cancel(countdownThread)
+		countdownThread = nil
+	end
 end
 
 -- Khi nhân vật spawn thì script tự điều khiển
@@ -93,67 +119,54 @@ player.CharacterAdded:Connect(function(char)
 	local hrp = char:WaitForChild("HumanoidRootPart")
 
 	---------------------------------------------------
-	-- ✨ Bước 1: Tự chạy thẳng 7 giây sau khi spawn
+	-- ✨ Tự chạy thẳng 7 giây sau khi spawn
 	---------------------------------------------------
-	statusLabel.Text = "🏃 Đang chạy thẳng " .. moveDuration .. "s..."
-	local startTime = tick()
+	task.spawn(function()
+		statusLabel.Text = "🏃 Đang chạy thẳng " .. moveDuration .. "s..."
+		local startTime = tick()
 
-	local connection
-	connection = RunService.RenderStepped:Connect(function()
-		if humanoid.Health <= 0 or tick() - startTime >= moveDuration or not autoEnabled then
-			humanoid:Move(Vector3.new(0,0,0))
-			if connection then connection:Disconnect() end
-			statusLabel.Text = "✅ Đã chạy xong, chuẩn bị về Base"
-			return
-		end
-		humanoid:Move(hrp.CFrame.LookVector)
+		local connection
+		connection = RunService.RenderStepped:Connect(function()
+			if humanoid.Health <= 0 or tick() - startTime >= moveDuration or not autoEnabled then
+				humanoid:Move(Vector3.new(0,0,0))
+				if connection then connection:Disconnect() end
+				statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
+
+				-- 🔥 Bắt đầu đếm ngay sau khi chạy thẳng xong
+				startCountdown(humanoid)
+				return
+			end
+
+			-- ép nhân vật di chuyển theo hướng nhìn
+			local moveDirection = hrp.CFrame.LookVector
+			humanoid:Move(moveDirection)
+		end)
 	end)
 
 	---------------------------------------------------
-	-- ✨ Bước 2: Sau đó mới di chuyển về base + khóa cửa
+	-- Sau đó di chuyển về base + khóa cửa
 	---------------------------------------------------
-	task.delay(moveDuration, function()
-		if not autoEnabled or humanoid.Health <= 0 then return end
+	local baseFolder = workspace:FindFirstChild("Bases")
+	if not baseFolder then return end
+	local base = baseFolder:FindFirstChild(player.Name)
+	if not base then return end
 
-		local baseFolder = workspace:FindFirstChild("Bases")
-		if not baseFolder then return end
-		local base = baseFolder:FindFirstChild(player.Name)
-		if not base then return end
+	local targetPos = base.Position + Vector3.new(0,3,0)
 
-		local targetPos = base.Position + Vector3.new(0,3,0)
-
-		task.spawn(function()
-			while autoEnabled and humanoid and humanoid.Health > 0 do
-				humanoid:MoveTo(targetPos)
-				local reached = humanoid.MoveToFinished:Wait()
-				if reached then
-					local door = base:FindFirstChild("Door")
-					if door and door:IsA("Part") then
-						door.CanCollide = true
-						door.Transparency = 0
-						print("Base của "..player.Name.." đã được khóa!")
-					end
-					break
+	task.spawn(function()
+		while autoEnabled and humanoid and humanoid.Health > 0 do
+			humanoid:MoveTo(targetPos)
+			local reached = humanoid.MoveToFinished:Wait()
+			if reached then
+				local door = base:FindFirstChild("Door")
+				if door and door:IsA("Part") then
+					door.CanCollide = true
+					door.Transparency = 0
+					print("Base của "..player.Name.." đã được khóa!")
 				end
+				break
 			end
-		end)
-
-		---------------------------------------------------
-		-- ✨ Bước 3: Sau khi về Base mới bắt đầu đếm ngược reset
-		---------------------------------------------------
-		task.spawn(function()
-			while autoEnabled do
-				for i = respawnTime,1,-1 do
-					if not autoEnabled then break end
-					countdown = i
-					statusLabel.Text = "Reset sau: "..countdown.."s"
-					task.wait(1)
-				end
-				if autoEnabled and humanoid and humanoid.Health > 0 then
-					humanoid.Health = 0
-				end
-			end
-		end)
+		end
 	end)
 end)
 
