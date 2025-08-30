@@ -1,33 +1,33 @@
+-- LocalScript (put in StarterPlayerScripts)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
--- Thời gian mặc định
+-- Cấu hình
 local respawnTime = 20
+local moveDuration = 7
 local autoEnabled = false
 local countdown = respawnTime
-local moveDuration = 7 -- thời gian tự chạy thẳng (giây)
-local countdownThread
 
---====================================
--- GUI
---====================================
+-- State
+local countdownThread = nil
+local isMoving = false
+
+-- GUI (giữ nguyên layout của bạn)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "BaseSystemGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Nút ẩn/hiện
 local toggleMainBtn = Instance.new("TextButton", ScreenGui)
 toggleMainBtn.Size = UDim2.new(0,120,0,40)
-toggleMainBtn.Position = UDim2.new(0.85,0,0.05,0) -- góc trên bên phải
+toggleMainBtn.Position = UDim2.new(0.85,0,0.05,0)
 toggleMainBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
 toggleMainBtn.TextColor3 = Color3.new(1,1,1)
 toggleMainBtn.Text = "📋 Menu"
 toggleMainBtn.Active = true
 toggleMainBtn.Draggable = true
 
--- Bảng chính
 local mainFrame = Instance.new("Frame", ScreenGui)
 mainFrame.Size = UDim2.new(0, 220, 0, 150)
 mainFrame.Position = UDim2.new(0, 20, 0, 100)
@@ -36,14 +36,12 @@ mainFrame.Active = true
 mainFrame.Draggable = true
 mainFrame.Visible = true
 
--- Tiêu đề
 local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1,0,0,30)
 title.BackgroundColor3 = Color3.fromRGB(20,20,20)
 title.TextColor3 = Color3.new(1,1,1)
 title.Text = "⚔ Auto Base System"
 
--- Nút bật/tắt Auto
 local toggleBtn = Instance.new("TextButton", mainFrame)
 toggleBtn.Size = UDim2.new(0.9,0,0,30)
 toggleBtn.Position = UDim2.new(0.05,0,0,40)
@@ -51,7 +49,6 @@ toggleBtn.Text = "▶️ Bật Auto"
 toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
 toggleBtn.TextColor3 = Color3.new(1,1,1)
 
--- Ô nhập số giây
 local timeBox = Instance.new("TextBox", mainFrame)
 timeBox.Size = UDim2.new(0.9,0,0,30)
 timeBox.Position = UDim2.new(0.05,0,0,80)
@@ -60,7 +57,6 @@ timeBox.Text = ""
 timeBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
 timeBox.TextColor3 = Color3.new(1,1,1)
 
--- Label trạng thái
 local statusLabel = Instance.new("TextLabel", mainFrame)
 statusLabel.Size = UDim2.new(0.9,0,0,30)
 statusLabel.Position = UDim2.new(0.05,0,0,120)
@@ -68,49 +64,56 @@ statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.new(1,1,1)
 statusLabel.Text = "Trạng thái: Tắt"
 
---====================================
--- Chức năng
---====================================
+-- Helpers
 local function forceReset()
+	-- nếu có humanoid thì reset liền, nếu chưa có thì chờ spawn rồi reset
 	if player.Character and player.Character:FindFirstChild("Humanoid") then
 		player.Character.Humanoid.Health = 0
 	else
-		-- Nếu chưa có humanoid thì chờ spawn xong rồi reset
-		player.CharacterAdded:Wait():WaitForChild("Humanoid").Health = 0
+		local newChar = player.CharacterAdded:Wait()
+		newChar:WaitForChild("Humanoid").Health = 0
 	end
 end
 
-local function startCountdown(humanoid)
+local function cancelCountdown()
 	if countdownThread then
 		task.cancel(countdownThread)
+		countdownThread = nil
 	end
+end
 
+local function startCountdown()
+	-- cancel cũ rồi tạo thread mới
+	cancelCountdown()
 	countdownThread = task.spawn(function()
-		while autoEnabled do
-			for i = respawnTime,1,-1 do
-				if not autoEnabled then break end
-				countdown = i
-				statusLabel.Text = "Reset sau: "..countdown.."s"
-				task.wait(1)
+		-- đếm từ respawnTime về 1
+		for i = respawnTime, 1, -1 do
+			if not autoEnabled then return end
+			-- nếu đang di chuyển (isMoving=true) thì dừng hẳn thread (CharacterAdded sẽ tự restart countdown sau khi xong)
+			if isMoving then
+				-- an toàn: thoát thread ngay (CharacterAdded sẽ gọi startCountdown lại)
+				return
 			end
-
-			-- Hết giờ thì reset nhân vật
-			if autoEnabled then
-				forceReset()
-			end
+			countdown = i
+			statusLabel.Text = "Reset sau: "..countdown.."s"
+			task.wait(1)
+		end
+		-- hết giờ -> reset
+		if autoEnabled then
+			statusLabel.Text = "Đang reset..."
+			forceReset()
 		end
 	end)
 end
 
+-- Auto control
 local function startAuto()
 	autoEnabled = true
-	countdown = respawnTime
 	toggleBtn.Text = "⏹ Tắt Auto"
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
 	statusLabel.Text = "Trạng thái: Bật"
-
-	-- ✅ Ngay khi bật, bắt đầu đếm luôn (chưa reset ngay)
-	startCountdown(player.Character and player.Character:FindFirstChild("Humanoid"))
+	-- bắt đầu đếm ngay khi bật
+	startCountdown()
 end
 
 local function stopAuto()
@@ -118,58 +121,61 @@ local function stopAuto()
 	toggleBtn.Text = "▶️ Bật Auto"
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
 	statusLabel.Text = "Trạng thái: Tắt"
-	if countdownThread then
-		task.cancel(countdownThread)
-		countdownThread = nil
-	end
+	-- hủy countdown nếu có
+	cancelCountdown()
 end
 
--- Khi nhân vật spawn thì script tự điều khiển
+-- Khi spawn nhân vật
 player.CharacterAdded:Connect(function(char)
+	-- nếu Auto tắt thì không làm gì
 	if not autoEnabled then return end
-	task.wait(1)
 
+	-- hủy countdown hiện tại (không được chạy trong lúc di chuyển)
+	cancelCountdown()
+
+	-- lấy humanoid + hrp
 	local humanoid = char:WaitForChild("Humanoid")
 	local hrp = char:WaitForChild("HumanoidRootPart")
 
-	---------------------------------------------------
-	-- ✨ Tự chạy thẳng 7 giây sau khi spawn
-	---------------------------------------------------
-	task.spawn(function()
-		statusLabel.Text = "🏃 Đang chạy thẳng " .. moveDuration .. "s..."
-		local startTime = tick()
+	-- set flag di chuyển
+	isMoving = true
+	statusLabel.Text = "🏃 Đang chạy thẳng " .. moveDuration .. "s..."
+	local startTime = tick()
 
-		local connection
-		connection = RunService.RenderStepped:Connect(function()
-			if humanoid.Health <= 0 or tick() - startTime >= moveDuration or not autoEnabled then
-				humanoid:Move(Vector3.new(0,0,0))
-				if connection then connection:Disconnect() end
-				statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
-
-				-- 🔥 Sau khi chạy thẳng xong → mới tiếp tục đếm
-				startCountdown(humanoid)
-				return
+	-- di chuyển thẳng trong moveDuration giây
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		if not autoEnabled or not humanoid or humanoid.Health <= 0 or tick() - startTime >= moveDuration then
+			-- dừng di chuyển
+			if humanoid then
+				pcall(function() humanoid:Move(Vector3.new(0,0,0)) end)
 			end
+			if conn then conn:Disconnect() end
+			isMoving = false
+			statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
 
-			-- ép nhân vật di chuyển theo hướng nhìn
-			local moveDirection = hrp.CFrame.LookVector
-			humanoid:Move(moveDirection)
-		end)
+			-- bắt đầu đếm NGAY SAU khi chạy thẳng xong
+			-- (startCountdown sẽ tạo thread mới)
+			startCountdown()
+			return
+		end
+
+		-- di chuyển theo hướng nhìn
+		if humanoid and hrp then
+			pcall(function() humanoid:Move(hrp.CFrame.LookVector) end)
+		end
 	end)
 
-	---------------------------------------------------
-	-- Sau đó di chuyển về base + khóa cửa
-	---------------------------------------------------
-	local baseFolder = workspace:FindFirstChild("Bases")
-	if not baseFolder then return end
-	local base = baseFolder:FindFirstChild(player.Name)
-	if not base then return end
-
-	local targetPos = base.Position + Vector3.new(0,3,0)
-
+	-- Sau đó vẫn cố di chuyển về base và khóa cửa (không chặn countdown)
 	task.spawn(function()
+		local baseFolder = workspace:FindFirstChild("Bases")
+		if not baseFolder then return end
+		local base = baseFolder:FindFirstChild(player.Name)
+		if not base then return end
+
+		local targetPos = base.Position + Vector3.new(0,3,0)
 		while autoEnabled and humanoid and humanoid.Health > 0 do
-			humanoid:MoveTo(targetPos)
+			pcall(function() humanoid:MoveTo(targetPos) end)
 			local reached = humanoid.MoveToFinished:Wait()
 			if reached then
 				local door = base:FindFirstChild("Door")
@@ -180,24 +186,22 @@ player.CharacterAdded:Connect(function(char)
 				end
 				break
 			end
+			task.wait(0.1)
 		end
 	end)
 end)
 
--- Nút bật/tắt Auto
+-- Buttons
 toggleBtn.MouseButton1Click:Connect(function()
 	if autoEnabled then
 		stopAuto()
 	else
 		local val = tonumber(timeBox.Text)
-		if val and val > 0 then
-			respawnTime = val
-		end
+		if val and val > 0 then respawnTime = val end
 		startAuto()
 	end
 end)
 
--- Nút ẩn/hiện bảng
 toggleMainBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
