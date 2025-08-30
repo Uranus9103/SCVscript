@@ -1,0 +1,86 @@
+--// Steal a Brainrot – ESP Base for New Players
+--// Chỉ hiển thị Part/Item có tên "Brain" để người chơi mới dễ thấy
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local StarterGui = game:GetService("StarterGui")
+
+-- CONFIG
+local ESP_ENABLED = true
+local SHOW_TIME = 300 -- giây (5 phút) -> sau đó tắt ESP tự động
+local TARGET_NAME = "Brain" -- tên Part hoặc Model muốn highlight
+local MAX_DISTANCE = 500 -- khoảng cách tối đa
+
+-- Function tạo highlight
+local function createHighlight(part)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.Adornee = part
+    highlight.FillColor = Color3.fromRGB(255, 50, 50) -- màu đỏ
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.Parent = part
+end
+
+-- Xóa highlight cũ nếu có
+local function clearHighlight(part)
+    local old = part:FindFirstChild("ESP_Highlight")
+    if old then old:Destroy() end
+end
+
+-- Cập nhật ESP
+local function updateESP()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name == TARGET_NAME then
+            local dist = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart"))
+                and (obj.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude or 9999
+
+            if dist <= MAX_DISTANCE then
+                if not obj:FindFirstChild("ESP_Highlight") then
+                    createHighlight(obj)
+                end
+            else
+                clearHighlight(obj)
+            end
+        end
+    end
+end
+
+-- Toggle bằng RightShift
+LocalPlayer:GetMouse().KeyDown:Connect(function(key)
+    if key == "]" then -- bạn có thể đổi sang RightShift nếu muốn
+        ESP_ENABLED = not ESP_ENABLED
+        StarterGui:SetCore("SendNotification", {
+            Title = "ESP",
+            Text = ESP_ENABLED and "Đã bật ESP" or "Đã tắt ESP",
+            Duration = 2
+        })
+        if not ESP_ENABLED then
+            for _, obj in pairs(workspace:GetDescendants()) do
+                clearHighlight(obj)
+            end
+        end
+    end
+end)
+
+-- Tự động tắt ESP sau SHOW_TIME
+task.delay(SHOW_TIME, function()
+    ESP_ENABLED = false
+    for _, obj in pairs(workspace:GetDescendants()) do
+        clearHighlight(obj)
+    end
+    StarterGui:SetCore("SendNotification", {
+        Title = "ESP",
+        Text = "ESP đã tự tắt (hết thời gian hỗ trợ newbie).",
+        Duration = 5
+    })
+end)
+
+-- Vòng lặp update
+RunService.RenderStepped:Connect(function()
+    if ESP_ENABLED then
+        updateESP()
+    end
+end)
