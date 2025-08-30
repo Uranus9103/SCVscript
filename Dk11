@@ -1,0 +1,101 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+-- Biến để kiểm soát trạng thái
+local isMovingForward = false
+local moveStartTime = 0
+local moveDuration = 10 -- Thời gian di chuyển (giây)
+
+-- Hàm để bắt đầu di chuyển thẳng
+local function startMovingForward()
+    if isMovingForward then return end
+    
+    isMovingForward = true
+    moveStartTime = tick()
+    
+    print("Bắt đầu di chuyển thẳng trong 10 giây...")
+    
+    -- Kết nối sự kiện RenderStepped để liên tục di chuyển nhân vật
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if not isMovingForward then
+            connection:Disconnect()
+            return
+        end
+        
+        -- Kiểm tra thời gian đã trôi qua
+        local elapsedTime = tick() - moveStartTime
+        if elapsedTime >= moveDuration then
+            -- Dừng di chuyển sau 10 giây
+            isMovingForward = false
+            humanoid:Move(Vector3.new(0, 0, 0)) -- Dừng di chuyển
+            connection:Disconnect()
+            print("Đã dừng di chuyển thẳng")
+            return
+        end
+        
+        -- Di chuyển nhân vật về phía trước
+        local moveDirection = character:GetPivot().LookVector
+        humanoid:Move(moveDirection)
+    end)
+end
+
+-- Hàm để kích hoạt di chuyển (có thể gọi từ nút UI hoặc phím)
+local function toggleMovement()
+    if isMovingForward then
+        isMovingForward = false
+        humanoid:Move(Vector3.new(0, 0, 0))
+        print("Đã dừng di chuyển sớm")
+    else
+        startMovingForward()
+    end
+end
+
+-- Tạo một phần tử UI đơn giản để kích hoạt (tùy chọn)
+local function createControlUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    local TextButton = Instance.new("TextButton")
+    
+    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+    ScreenGui.Name = "AutoMoveGUI"
+    
+    TextButton.Parent = ScreenGui
+    TextButton.Size = UDim2.new(0, 200, 0, 50)
+    TextButton.Position = UDim2.new(0.5, -100, 0, 10)
+    TextButton.Text = "Bật/Tắt Di Chuyển Tự Động"
+    TextButton.BackgroundColor3 = Color3.fromRGB(85, 170, 255)
+    TextButton.TextColor3 = Color3.new(1, 1, 1)
+    TextButton.Font = Enum.Font.SourceSansBold
+    TextButton.TextSize = 18
+    
+    TextButton.MouseButton1Click:Connect(toggleMovement)
+end
+
+-- Tự động chạy khi character được load
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    createControlUI()
+end)
+
+-- Khởi tạo ban đầu
+if character then
+    humanoid = character:WaitForChild("Humanoid")
+    createControlUI()
+end
+
+-- Hoặc có thể gán vào một phím tắt (ví dụ: phím F)
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.F then
+        toggleMovement()
+    end
+end)
+
+print("Script auto move đã được khởi tạo. Nhấn F hoặc nút trên màn hình để bật/tắt di chuyển tự động.")
