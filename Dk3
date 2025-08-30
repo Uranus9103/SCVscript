@@ -1,0 +1,88 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "BaseSystem"
+
+local startBtn = Instance.new("TextButton", ScreenGui)
+startBtn.Size = UDim2.new(0,120,0,40)
+startBtn.Position = UDim2.new(0,20,0,100)
+startBtn.Text = "▶️ Bật Auto Base"
+
+local timeBox = Instance.new("TextBox", ScreenGui)
+timeBox.Size = UDim2.new(0,120,0,40)
+timeBox.Position = UDim2.new(0,20,0,150)
+timeBox.PlaceholderText = "Nhập giây (vd: 20)"
+timeBox.Text = ""
+
+local statusLabel = Instance.new("TextLabel", ScreenGui)
+statusLabel.Size = UDim2.new(0,200,0,40)
+statusLabel.Position = UDim2.new(0,20,0,200)
+statusLabel.Text = "Trạng thái: Tắt"
+statusLabel.TextColor3 = Color3.new(1,1,1)
+statusLabel.BackgroundTransparency = 1
+
+-- Biến
+local autoEnabled = false
+local respawnTime = 20 -- mặc định 20s
+
+-- Hàm bật/tắt
+local function toggleAuto()
+	if autoEnabled then
+		autoEnabled = false
+		statusLabel.Text = "Trạng thái: Tắt"
+		startBtn.Text = "▶️ Bật Auto Base"
+	else
+		-- lấy số giây từ TextBox
+		local val = tonumber(timeBox.Text)
+		if val and val > 0 then
+			respawnTime = val
+		end
+
+		autoEnabled = true
+		statusLabel.Text = "Trạng thái: Bật ("..respawnTime.."s)"
+		startBtn.Text = "⏹ Tắt Auto Base"
+
+		-- chạy vòng reset
+		task.spawn(function()
+			while autoEnabled do
+				task.wait(respawnTime)
+				if autoEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+					player.Character.Humanoid.Health = 0 -- reset
+				end
+			end
+		end)
+	end
+end
+
+-- Khi nhân vật spawn thì auto chạy về base (nếu bật)
+player.CharacterAdded:Connect(function(char)
+	if not autoEnabled then return end
+
+	task.wait(1) -- đợi nhân vật load
+	local baseFolder = workspace:FindFirstChild("Bases")
+	if not baseFolder then return end
+	local base = baseFolder:FindFirstChild(player.Name)
+	if not base then return end
+
+	local humanoid = char:WaitForChild("Humanoid")
+	local hrp = char:WaitForChild("HumanoidRootPart")
+
+	-- di chuyển tới base
+	humanoid:MoveTo(base.Position)
+
+	humanoid.MoveToFinished:Connect(function(reached)
+		if reached then
+			local door = base:FindFirstChild("Door")
+			if door and door:IsA("Part") then
+				door.CanCollide = true
+				door.Transparency = 0 -- hiện cửa để khóa
+				print("Đã khóa base của "..player.Name)
+			end
+		end
+	end)
+end)
+
+-- Gắn sự kiện nút
+startBtn.MouseButton1Click:Connect(toggleAuto)
