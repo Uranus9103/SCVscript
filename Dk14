@@ -6,7 +6,7 @@ local player = Players.LocalPlayer
 local respawnTime = 20
 local autoEnabled = false
 local countdown = respawnTime
-local moveDuration = 7 -- thời gian tự chạy thẳng (giây)
+local moveDuration = 4 -- thời gian tự chạy thẳng (giây)
 
 --====================================
 -- GUI
@@ -19,7 +19,7 @@ ScreenGui.Parent = player:WaitForChild("PlayerGui")
 -- Nút ẩn/hiện
 local toggleMainBtn = Instance.new("TextButton", ScreenGui)
 toggleMainBtn.Size = UDim2.new(0,120,0,40)
-toggleMainBtn.Position = UDim2.new(0.85,0,0.05,0) -- góc trên bên phải
+toggleMainBtn.Position = UDim2.new(0.85,0,0.05,0)
 toggleMainBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
 toggleMainBtn.TextColor3 = Color3.new(1,1,1)
 toggleMainBtn.Text = "📋 Menu"
@@ -70,34 +70,19 @@ statusLabel.Text = "Trạng thái: Tắt"
 --====================================
 -- Chức năng
 --====================================
-local function startAuto()
-	autoEnabled = true
-	countdown = respawnTime
-	toggleBtn.Text = "⏹ Tắt Auto"
-	toggleBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
-	statusLabel.Text = "Trạng thái: Bật ("..respawnTime.."s)"
-	
-	-- vòng đếm ngược reset
-	task.spawn(function()
-		while autoEnabled do
-			for i = respawnTime,1,-1 do
-				if not autoEnabled then break end
-				countdown = i
-				statusLabel.Text = "Reset sau: "..countdown.."s"
-				task.wait(1)
-			end
-			if autoEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
-				player.Character.Humanoid.Health = 0 -- reset
-			end
-		end
-	end)
-end
-
 local function stopAuto()
 	autoEnabled = false
 	toggleBtn.Text = "▶️ Bật Auto"
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
 	statusLabel.Text = "Trạng thái: Tắt"
+end
+
+local function startAuto()
+	autoEnabled = true
+	countdown = respawnTime
+	toggleBtn.Text = "⏹ Tắt Auto"
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
+	statusLabel.Text = "Trạng thái: Bật"
 end
 
 -- Khi nhân vật spawn thì script tự điều khiển
@@ -109,52 +94,39 @@ player.CharacterAdded:Connect(function(char)
 	local hrp = char:WaitForChild("HumanoidRootPart")
 
 	---------------------------------------------------
-	-- ✨ Tự chạy thẳng 7 giây sau khi spawn
+	-- ✨ Bước 1: Tự chạy thẳng trong moveDuration giây
 	---------------------------------------------------
-	task.spawn(function()
-		statusLabel.Text = "🏃 Đang chạy thẳng " .. moveDuration .. "s..."
-		local startTime = tick()
+	statusLabel.Text = "🏃 Đang chạy thẳng " .. moveDuration .. "s..."
+	local startTime = tick()
 
-		local connection
-		connection = RunService.RenderStepped:Connect(function()
-			if humanoid.Health <= 0 or tick() - startTime >= moveDuration or not autoEnabled then
-				humanoid:Move(Vector3.new(0,0,0))
-				if connection then connection:Disconnect() end
-				statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
-				return
-			end
-
-			-- ép nhân vật di chuyển theo hướng nhìn
-			local moveDirection = hrp.CFrame.LookVector
-			humanoid:Move(moveDirection)
-		end)
-	end)
-
-	---------------------------------------------------
-	-- Sau đó vẫn di chuyển về base + khóa cửa
-	---------------------------------------------------
-	local baseFolder = workspace:FindFirstChild("Bases")
-	if not baseFolder then return end
-	local base = baseFolder:FindFirstChild(player.Name)
-	if not base then return end
-
-	local targetPos = base.Position + Vector3.new(0,3,0)
-
-	task.spawn(function()
-		while autoEnabled and humanoid and humanoid.Health > 0 do
-			humanoid:MoveTo(targetPos)
-			local reached = humanoid.MoveToFinished:Wait()
-			if reached then
-				local door = base:FindFirstChild("Door")
-				if door and door:IsA("Part") then
-					door.CanCollide = true
-					door.Transparency = 0
-					print("Base của "..player.Name.." đã được khóa!")
-				end
-				break
-			end
+	local connection
+	connection = RunService.RenderStepped:Connect(function()
+		if humanoid.Health <= 0 or tick() - startTime >= moveDuration or not autoEnabled then
+			humanoid:Move(Vector3.new(0,0,0))
+			if connection then connection:Disconnect() end
+			return
 		end
+		local moveDirection = hrp.CFrame.LookVector
+		humanoid:Move(moveDirection)
 	end)
+
+	-- Đợi chạy xong
+	task.wait(moveDuration)
+
+	---------------------------------------------------
+	-- ✨ Bước 2: Đếm ngược rồi reset
+	---------------------------------------------------
+	while autoEnabled do
+		for i = respawnTime,1,-1 do
+			if not autoEnabled then break end
+			countdown = i
+			statusLabel.Text = "Reset sau: "..countdown.."s"
+			task.wait(1)
+		end
+		if autoEnabled and humanoid and humanoid.Health > 0 then
+			humanoid.Health = 0 -- reset
+		end
+	end
 end)
 
 -- Nút bật/tắt Auto
