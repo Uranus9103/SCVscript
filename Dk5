@@ -1,16 +1,18 @@
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- Thời gian mặc định (giây)
+-- Thời gian mặc định
 local respawnTime = 20
-local countdown = respawnTime
 local autoEnabled = false
+local countdown = respawnTime
 
 --====================================
 -- GUI
 --====================================
-local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "BaseSystemGUI"
+ScreenGui.ResetOnSpawn = false  -- ❌ Không biến mất khi reset
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Bảng chính
 local mainFrame = Instance.new("Frame", ScreenGui)
@@ -62,7 +64,7 @@ local function startAuto()
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
 	statusLabel.Text = "Trạng thái: Bật ("..respawnTime.."s)"
 	
-	-- vòng đếm ngược
+	-- vòng đếm ngược reset
 	task.spawn(function()
 		while autoEnabled do
 			for i = respawnTime,1,-1 do
@@ -85,11 +87,11 @@ local function stopAuto()
 	statusLabel.Text = "Trạng thái: Tắt"
 end
 
--- Khi nhân vật spawn thì tự chạy về base và khóa
+-- Khi nhân vật spawn thì script tự điều khiển về Base
 player.CharacterAdded:Connect(function(char)
 	if not autoEnabled then return end
 	task.wait(1)
-	
+
 	local baseFolder = workspace:FindFirstChild("Bases")
 	if not baseFolder then return end
 	local base = baseFolder:FindFirstChild(player.Name)
@@ -98,7 +100,7 @@ player.CharacterAdded:Connect(function(char)
 	local humanoid = char:WaitForChild("Humanoid")
 	local hrp = char:WaitForChild("HumanoidRootPart")
 
-	-- tự chạy về base
+	-- Tự động di chuyển (không cần người chơi bấm phím)
 	humanoid:MoveTo(base.Position)
 
 	humanoid.MoveToFinished:Connect(function(reached)
@@ -113,12 +115,11 @@ player.CharacterAdded:Connect(function(char)
 	end)
 end)
 
--- Sự kiện bấm nút
+-- Nút bấm GUI
 toggleBtn.MouseButton1Click:Connect(function()
 	if autoEnabled then
 		stopAuto()
 	else
-		-- nếu người chơi nhập số giây mới
 		local val = tonumber(timeBox.Text)
 		if val and val > 0 then
 			respawnTime = val
