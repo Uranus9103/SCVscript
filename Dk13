@@ -13,8 +13,18 @@ local moveDuration = 7 -- thời gian tự chạy thẳng (giây)
 --====================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "BaseSystemGUI"
-ScreenGui.ResetOnSpawn = false -- giữ lại UI khi reset
+ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Nút ẩn/hiện
+local toggleMainBtn = Instance.new("TextButton", ScreenGui)
+toggleMainBtn.Size = UDim2.new(0,120,0,40)
+toggleMainBtn.Position = UDim2.new(0.85,0,0.05,0) -- góc trên bên phải
+toggleMainBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+toggleMainBtn.TextColor3 = Color3.new(1,1,1)
+toggleMainBtn.Text = "📋 Menu"
+toggleMainBtn.Active = true
+toggleMainBtn.Draggable = true
 
 -- Bảng chính
 local mainFrame = Instance.new("Frame", ScreenGui)
@@ -23,6 +33,7 @@ mainFrame.Position = UDim2.new(0, 20, 0, 100)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 mainFrame.Active = true
 mainFrame.Draggable = true
+mainFrame.Visible = true
 
 -- Tiêu đề
 local title = Instance.new("TextLabel", mainFrame)
@@ -31,7 +42,7 @@ title.BackgroundColor3 = Color3.fromRGB(20,20,20)
 title.TextColor3 = Color3.new(1,1,1)
 title.Text = "⚔ Auto Base System"
 
--- Nút bật/tắt
+-- Nút bật/tắt Auto
 local toggleBtn = Instance.new("TextButton", mainFrame)
 toggleBtn.Size = UDim2.new(0.9,0,0,30)
 toggleBtn.Position = UDim2.new(0.05,0,0,40)
@@ -146,7 +157,7 @@ player.CharacterAdded:Connect(function(char)
 	end)
 end)
 
--- Nút bấm GUI
+-- Nút bật/tắt Auto
 toggleBtn.MouseButton1Click:Connect(function()
 	if autoEnabled then
 		stopAuto()
@@ -157,4 +168,9 @@ toggleBtn.MouseButton1Click:Connect(function()
 		end
 		startAuto()
 	end
+end)
+
+-- Nút ẩn/hiện bảng
+toggleMainBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
 end)
