@@ -1,0 +1,160 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- Thời gian mặc định
+local respawnTime = 20
+local autoEnabled = false
+local countdown = respawnTime
+local moveDuration = 7 -- thời gian tự chạy thẳng (giây)
+
+--====================================
+-- GUI
+--====================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BaseSystemGUI"
+ScreenGui.ResetOnSpawn = false -- giữ lại UI khi reset
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Bảng chính
+local mainFrame = Instance.new("Frame", ScreenGui)
+mainFrame.Size = UDim2.new(0, 220, 0, 150)
+mainFrame.Position = UDim2.new(0, 20, 0, 100)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+-- Tiêu đề
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1,0,0,30)
+title.BackgroundColor3 = Color3.fromRGB(20,20,20)
+title.TextColor3 = Color3.new(1,1,1)
+title.Text = "⚔ Auto Base System"
+
+-- Nút bật/tắt
+local toggleBtn = Instance.new("TextButton", mainFrame)
+toggleBtn.Size = UDim2.new(0.9,0,0,30)
+toggleBtn.Position = UDim2.new(0.05,0,0,40)
+toggleBtn.Text = "▶️ Bật Auto"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+
+-- Ô nhập số giây
+local timeBox = Instance.new("TextBox", mainFrame)
+timeBox.Size = UDim2.new(0.9,0,0,30)
+timeBox.Position = UDim2.new(0.05,0,0,80)
+timeBox.PlaceholderText = "Nhập thời gian (giây)"
+timeBox.Text = ""
+timeBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+timeBox.TextColor3 = Color3.new(1,1,1)
+
+-- Label trạng thái
+local statusLabel = Instance.new("TextLabel", mainFrame)
+statusLabel.Size = UDim2.new(0.9,0,0,30)
+statusLabel.Position = UDim2.new(0.05,0,0,120)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.new(1,1,1)
+statusLabel.Text = "Trạng thái: Tắt"
+
+--====================================
+-- Chức năng
+--====================================
+local function startAuto()
+	autoEnabled = true
+	countdown = respawnTime
+	toggleBtn.Text = "⏹ Tắt Auto"
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
+	statusLabel.Text = "Trạng thái: Bật ("..respawnTime.."s)"
+	
+	-- vòng đếm ngược reset
+	task.spawn(function()
+		while autoEnabled do
+			for i = respawnTime,1,-1 do
+				if not autoEnabled then break end
+				countdown = i
+				statusLabel.Text = "Reset sau: "..countdown.."s"
+				task.wait(1)
+			end
+			if autoEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+				player.Character.Humanoid.Health = 0 -- reset
+			end
+		end
+	end)
+end
+
+local function stopAuto()
+	autoEnabled = false
+	toggleBtn.Text = "▶️ Bật Auto"
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
+	statusLabel.Text = "Trạng thái: Tắt"
+end
+
+-- Khi nhân vật spawn thì script tự điều khiển
+player.CharacterAdded:Connect(function(char)
+	if not autoEnabled then return end
+	task.wait(1)
+
+	local humanoid = char:WaitForChild("Humanoid")
+	local hrp = char:WaitForChild("HumanoidRootPart")
+
+	---------------------------------------------------
+	-- ✨ Tự chạy thẳng 7 giây sau khi spawn
+	---------------------------------------------------
+	task.spawn(function()
+		statusLabel.Text = "🏃 Đang chạy thẳng " .. moveDuration .. "s..."
+		local startTime = tick()
+
+		local connection
+		connection = RunService.RenderStepped:Connect(function()
+			if humanoid.Health <= 0 or tick() - startTime >= moveDuration or not autoEnabled then
+				humanoid:Move(Vector3.new(0,0,0))
+				if connection then connection:Disconnect() end
+				statusLabel.Text = "✅ Đã dừng, chuẩn bị về Base"
+				return
+			end
+
+			-- ép nhân vật di chuyển theo hướng nhìn
+			local moveDirection = hrp.CFrame.LookVector
+			humanoid:Move(moveDirection)
+		end)
+	end)
+
+	---------------------------------------------------
+	-- Sau đó vẫn di chuyển về base + khóa cửa
+	---------------------------------------------------
+	local baseFolder = workspace:FindFirstChild("Bases")
+	if not baseFolder then return end
+	local base = baseFolder:FindFirstChild(player.Name)
+	if not base then return end
+
+	local targetPos = base.Position + Vector3.new(0,3,0)
+
+	task.spawn(function()
+		while autoEnabled and humanoid and humanoid.Health > 0 do
+			humanoid:MoveTo(targetPos)
+			local reached = humanoid.MoveToFinished:Wait()
+			if reached then
+				local door = base:FindFirstChild("Door")
+				if door and door:IsA("Part") then
+					door.CanCollide = true
+					door.Transparency = 0
+					print("Base của "..player.Name.." đã được khóa!")
+				end
+				break
+			end
+		end
+	end)
+end)
+
+-- Nút bấm GUI
+toggleBtn.MouseButton1Click:Connect(function()
+	if autoEnabled then
+		stopAuto()
+	else
+		local val = tonumber(timeBox.Text)
+		if val and val > 0 then
+			respawnTime = val
+		end
+		startAuto()
+	end
+end)
