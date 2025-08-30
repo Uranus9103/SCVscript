@@ -1,0 +1,381 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+
+-- GUI
+local gui = player:WaitForChild("PlayerGui"):FindFirstChild("LiftGui")
+if not gui then
+	gui = Instance.new("ScreenGui")
+	gui.Name = "LiftGui"
+	gui.ResetOnSpawn = false 
+	gui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- Khung menu giống điện thoại
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,260,0,300)  -- hẹp dài giống điện thoại
+frame.Position = UDim2.new(0.05,0,0.1,0)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.Active = true
+frame.Draggable = true
+frame.Visible = true
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0,20)
+frameCorner.Parent = frame
+
+-- ScrollingFrame chứa nút
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 1, -10)
+scroll.Position = UDim2.new(0,5,0,5)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.new(0,0,0,0)
+scroll.ScrollBarThickness = 10
+scroll.Parent = frame
+
+-- Layout 2 cột
+local layout = Instance.new("UIGridLayout")
+layout.CellSize = UDim2.new(0.45,0,0,50)
+layout.CellPadding = UDim2.new(0.05,0,0.05,0)
+layout.FillDirection = Enum.FillDirection.Horizontal
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.VerticalAlignment = Enum.VerticalAlignment.Top
+layout.Parent = scroll
+
+-- Tự động set CanvasSize để có thể cuộn
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	scroll.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 20)
+end)
+
+-- Hàm tạo nút
+local function createButton(text, color)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0,0,0,0)  -- UIGridLayout tự quản lý
+	btn.Text = text
+	btn.TextScaled = true
+	btn.BackgroundColor3 = color
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	btn.Font = Enum.Font.GothamBold
+	btn.Parent = scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0,12)
+	corner.Parent = btn
+
+	return btn
+end
+
+-- Nút Ẩn/Hiện Menu
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0,100,0,40)
+toggleBtn.Position = UDim2.new(0.75,0,0.05,0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(80,80,200)
+toggleBtn.Text = "APEX HUB"
+toggleBtn.TextScaled = true
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Parent = gui
+toggleBtn.Active = true
+toggleBtn.Draggable = true
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0,8)
+btnCorner.Parent = toggleBtn
+
+local menuVisible = true
+toggleBtn.MouseButton1Click:Connect(function()
+	menuVisible = not menuVisible
+	frame.Visible = menuVisible
+end)
+
+-- Các nút
+local btnLift   = createButton("⬆️ Lift : OFF", Color3.fromRGB(200,50,50))
+local btnFly    = createButton("🛑 Đi Trên Không : OFF", Color3.fromRGB(200,50,50))
+local btnESP    = createButton("👀 ESP OFF", Color3.fromRGB(200,50,50))
+local btnWarn   = createButton("👤 Warning : OFF", Color3.fromRGB(200,50,50))
+local btnJump   = createButton("🟢 JumpPower : OFF", Color3.fromRGB(200,50,50))
+local btnServer = createButton("🌍 Đổi Server", Color3.fromRGB(80,150,250))
+local btnShader = createButton("✨ Shader & Fix Lag : OFF", Color3.fromRGB(200,50,50))
+local btnEsp2   = createButton("ESP v2 & Hitbox", Color3.fromRGB(255,140,0))
+local btnLockBase = createButton("🔒 Khoá Base", Color3.fromRGB(180,100,250))
+
+--------------------------------------------------
+-- Lift
+--------------------------------------------------
+local liftPart, liftEnabled, liftConnection = nil, false, nil
+local liftSpeed = 20
+
+btnLift.MouseButton1Click:Connect(function()
+	liftEnabled = not liftEnabled
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	if liftEnabled then
+		liftPart = Instance.new("Part")
+		liftPart.Size = Vector3.new(6,1,6)
+		liftPart.Anchored = true
+		liftPart.CanCollide = true
+		liftPart.Color = Color3.fromRGB(50,200,50)
+		liftPart.Transparency = 0.2
+		liftPart.Parent = workspace
+
+		btnLift.Text = "⬆️ Lift : ON"
+		btnLift.BackgroundColor3 = Color3.fromRGB(50,200,50)
+
+		liftConnection = RunService.RenderStepped:Connect(function(dt)
+			if hrp and liftPart and liftEnabled then
+				local pos = hrp.Position - Vector3.new(0,3,0)
+				liftPart.CFrame = CFrame.new(pos) * CFrame.new(0, liftSpeed*dt, 0)
+			end
+		end)
+	else
+		if liftPart then liftPart:Destroy() liftPart = nil end
+		if liftConnection then liftConnection:Disconnect() liftConnection = nil end
+		btnLift.Text = "⬆️ Lift : OFF"
+		btnLift.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	end
+end)
+
+--------------------------------------------------
+-- Fly
+--------------------------------------------------
+local flyPart, flyEnabled, flyConnection = nil, false, nil
+local flyHeight, flyRange, switchTime = 3, 1, 1
+local goingUp, flyTimer = true, 0
+
+btnFly.MouseButton1Click:Connect(function()
+	flyEnabled = not flyEnabled
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	if flyEnabled then
+		flyPart = Instance.new("Part")
+		flyPart.Size = Vector3.new(8,1,8)
+		flyPart.Anchored = true
+		flyPart.CanCollide = true
+		flyPart.Color = Color3.fromRGB(100,150,250)
+		flyPart.Transparency = 0.2
+		flyPart.Name = "FlyPlatform"
+		flyPart.Parent = workspace
+
+		flyPart.CFrame = CFrame.new(hrp.Position - Vector3.new(0, flyHeight, 0))
+
+		btnFly.Text = "🛑 Đi Trên Không : ON"
+		btnFly.BackgroundColor3 = Color3.fromRGB(50,200,50)
+
+		goingUp, flyTimer = true, 0
+
+		flyConnection = RunService.RenderStepped:Connect(function(dt)
+			if hrp and flyPart and flyEnabled then
+				flyTimer += dt
+				if flyTimer >= switchTime then
+					goingUp = not goingUp
+					flyTimer = 0
+				end
+				local basePos = hrp.Position - Vector3.new(0, flyHeight, 0)
+				local offset = goingUp and flyRange or -flyRange
+				flyPart.CFrame = flyPart.CFrame:Lerp(CFrame.new(basePos + Vector3.new(0, offset, 0)), 0.2)
+			end
+		end)
+	else
+		if flyPart then flyPart:Destroy() flyPart = nil end
+		if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+		btnFly.Text = "🛑 Đi Trên Không : OFF"
+		btnFly.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	end
+end)
+
+--------------------------------------------------
+-- ESP Highlight
+--------------------------------------------------
+local espEnabled = false
+local highlights = {}
+
+local function addESP(targetPlayer)
+	if targetPlayer.Character and not highlights[targetPlayer] then
+		local hl = Instance.new("Highlight")
+		hl.FillTransparency = 1
+		hl.OutlineColor = Color3.fromRGB(255,0,0)
+		hl.OutlineTransparency = 0
+		hl.Adornee = targetPlayer.Character
+		hl.Parent = targetPlayer.Character
+		highlights[targetPlayer] = hl
+	end
+end
+
+local function removeESP(targetPlayer)
+	if highlights[targetPlayer] then
+		highlights[targetPlayer]:Destroy()
+		highlights[targetPlayer] = nil
+	end
+end
+
+btnESP.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	if espEnabled then
+		btnESP.Text = "👀 ESP : ON"
+		btnESP.BackgroundColor3 = Color3.fromRGB(50,200,50)
+		for _,plr in pairs(Players:GetPlayers()) do
+			if plr ~= player then
+				addESP(plr)
+				plr.CharacterAdded:Connect(function()
+					if espEnabled then
+						task.wait(1)
+						addESP(plr)
+					end
+				end)
+			end
+		end
+	else
+		btnESP.Text = "👀 ESP : OFF"
+		btnESP.BackgroundColor3 = Color3.fromRGB(200,50,50)
+		for _,plr in pairs(Players:GetPlayers()) do
+			if plr ~= player then
+				removeESP(plr)
+			end
+		end
+	end
+end)
+
+--------------------------------------------------
+-- Warning gần
+--------------------------------------------------
+local warnEnabled = false
+local warnDistance = 60
+local warnLabel = Instance.new("TextLabel")
+warnLabel.Size = UDim2.new(1,0,0,40)
+warnLabel.Position = UDim2.new(0,0,0,0)
+warnLabel.BackgroundTransparency = 0.3
+warnLabel.BackgroundColor3 = Color3.fromRGB(200,0,0)
+warnLabel.Text = ""
+warnLabel.TextScaled = true
+warnLabel.Visible = false
+warnLabel.TextColor3 = Color3.new(1,1,1)
+warnLabel.Font = Enum.Font.GothamBold
+warnLabel.Parent = gui
+local warnConnection = nil
+
+btnWarn.MouseButton1Click:Connect(function()
+	warnEnabled = not warnEnabled
+	if warnEnabled then
+		btnWarn.Text = "👤 Warning : ON"
+		btnWarn.BackgroundColor3 = Color3.fromRGB(50,200,50)
+		warnConnection = RunService.RenderStepped:Connect(function()
+			local char = player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local hrp = char.HumanoidRootPart
+			local danger = false
+			for _,plr in pairs(Players:GetPlayers()) do
+				if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+					local dist = (plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+					if dist <= warnDistance then
+						danger = true
+						break
+					end
+				end
+			end
+			warnLabel.Visible = danger
+			if danger then
+				warnLabel.Text = "⚠️ Cẩn thận! Có người lại gần!\n⚠️ Careful! Someone is near!"
+			end
+		end)
+	else
+		btnWarn.Text = "👤 Warning : OFF"
+		btnWarn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+		if warnConnection then warnConnection:Disconnect() warnConnection=nil end
+		warnLabel.Visible=false
+	end
+end)
+
+--------------------------------------------------
+-- Jump Power
+--------------------------------------------------
+local jumpOn = false
+btnJump.MouseButton1Click:Connect(function()
+	jumpOn = not jumpOn
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.UseJumpPower = true
+		hum.JumpPower = jumpOn and 150 or 50
+	end
+	btnJump.Text = jumpOn and "🟢 JumpPower : ON" or "🟢 JumpPower : OFF"
+	btnJump.BackgroundColor3 = jumpOn and Color3.fromRGB(50,200,50) or Color3.fromRGB(200,50,50)
+end)
+
+--------------------------------------------------
+-- Đổi Server
+--------------------------------------------------
+btnServer.MouseButton1Click:Connect(function()
+	local gameId = game.PlaceId
+	local servers = {}
+	local success,result = pcall(function()
+		return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..gameId.."/servers/Public?sortOrder=Asc&limit=100"))
+	end)
+	if success and result and result.data then
+		for _,srv in ipairs(result.data) do
+			if srv.playing < srv.maxPlayers and srv.id ~= game.JobId then
+				table.insert(servers,srv.id)
+			end
+		end
+	end
+	if #servers>0 then
+		local randomServer = servers[math.random(1,#servers)]
+		TeleportService:TeleportToPlaceInstance(gameId,randomServer,player)
+	else
+		TeleportService:Teleport(gameId,player)
+	end
+end)
+
+--------------------------------------------------
+-- Shader & Fix Lag
+--------------------------------------------------
+local shaderOn = false
+local shaderGuiName = "Shader4_MainUI"
+
+btnShader.MouseButton1Click:Connect(function()
+	shaderOn = not shaderOn
+	if shaderOn then
+		btnShader.Text = "✨ Shader & Fix Lag : ON"
+		btnShader.BackgroundColor3 = Color3.fromRGB(50,200,50)
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Uranus9103/apexhubpro/refs/heads/main/Shader4"))()
+	else
+		btnShader.Text = "✨ Shader & Fix Lag : OFF"
+		btnShader.BackgroundColor3 = Color3.fromRGB(200,50,50)
+		local shaderGui = player:FindFirstChild("PlayerGui"):FindFirstChild(shaderGuiName)
+		if shaderGui then shaderGui:Destroy() end
+	end
+end)
+
+--------------------------------------------------
+-- ESP v2 & Hitbox
+--------------------------------------------------
+btnEsp2.MouseButton1Click:Connect(function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/Uranus9103/apexhubpro/refs/heads/main/aimbotok"))()
+end)
+
+--------------------------------------------------
+-- Khoá Base
+--------------------------------------------------
+btnLockBase.MouseButton1Click:Connect(function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/Uranus9103/SCVscript/refs/heads/main/Dk5"))()
+end)
+
+--------------------------------------------------
+-- Anti Kick
+--------------------------------------------------
+local mt = getrawmetatable(game)
+setreadonly(mt,false)
+local old = mt.__namecall
+mt.__namecall = newcclosure(function(self,...)
+	local method = getnamecallmethod()
+	if method=="Kick" or method=="kick" then
+		return nil
+	end
+	return old(self,...)
+end)
+setreadonly(mt,true)
