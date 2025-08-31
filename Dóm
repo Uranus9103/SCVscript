@@ -27,21 +27,22 @@ local frameCorner = Instance.new("UICorner")
 frameCorner.CornerRadius = UDim.new(0,20)
 frameCorner.Parent = frame
 
--- 📅 Label thông báo ngày (2/9) + glow + mờ dần
+-- 📅 Label thông báo ngày (ngoài màn hình, không dính menu)
 local dateLabel = Instance.new("TextLabel")
-dateLabel.Size = UDim2.new(1, -10, 0, 40)
-dateLabel.Position = UDim2.new(0, 5, 0, 5)
+dateLabel.Size = UDim2.new(0.6, 0, 0, 50) -- rộng 60% màn hình
+dateLabel.Position = UDim2.new(0.2, 0, -0.1, 0) -- ban đầu nằm ngoài màn hình
 dateLabel.BackgroundColor3 = Color3.fromRGB(60,60,60)
-dateLabel.Text = "Thông báo: Chúc mừng Quốc khánh 2/9! Chúc mọi người một ngày nghỉ lễ thật vui vẻ và ý nghĩa."
-dateLabel.TextColor3 = Color3.fromRGB(255, 215, 0) -- vàng sáng
+dateLabel.Text = "☺️ Chúc mừng Quốc khánh 2/9! 🎉\nChúc mọi người nghỉ lễ vui vẻ và ý nghĩa!"
+dateLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
 dateLabel.Font = Enum.Font.GothamBlack
 dateLabel.TextScaled = true
-dateLabel.Parent = frame
+dateLabel.TextWrapped = true
+dateLabel.Parent = gui
 
 -- Viền chữ (UIStroke)
 local stroke = Instance.new("UIStroke")
 stroke.Thickness = 2
-stroke.Color = Color3.fromRGB(0,0,0) -- viền đen
+stroke.Color = Color3.fromRGB(0,0,0)
 stroke.Parent = dateLabel
 
 -- Bo góc
@@ -49,7 +50,14 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0,12)
 corner.Parent = dateLabel
 
--- Hiệu ứng glow (nhấp nháy sáng nhẹ trong 10s)
+-- Hiệu ứng trượt xuống khi xuất hiện
+game:GetService("TweenService"):Create(
+	dateLabel,
+	TweenInfo.new(1, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	{Position = UDim2.new(0.2, 0, 0.05, 0)} -- trượt xuống màn hình
+):Play()
+
+-- Hiệu ứng glow trong 10s
 task.spawn(function()
 	local t = 0
 	while dateLabel and t < 10 do
@@ -59,7 +67,7 @@ task.spawn(function()
 	end
 end)
 
--- Tự động mờ dần và biến mất sau 10s
+-- Mờ dần và biến mất sau 10s
 task.delay(10, function()
 	if dateLabel then
 		for i = 1,20 do
@@ -74,8 +82,8 @@ end)
 
 -- ScrollingFrame chứa nút
 local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, -10, 1, -50) -- trừ ra chỗ label
-scroll.Position = UDim2.new(0,5,0,45)   -- xuống dưới label
+scroll.Size = UDim2.new(1, -10, 1, -10)
+scroll.Position = UDim2.new(0,5,0,5)
 scroll.BackgroundTransparency = 1
 scroll.BorderSizePixel = 0
 scroll.CanvasSize = UDim2.new(0,0,0,0)
@@ -137,12 +145,6 @@ toggleBtn.MouseButton1Click:Connect(function()
 	menuVisible = not menuVisible
 	frame.Visible = menuVisible
 end)
-
--- ==================================================
--- Các nút + chức năng Lift, Fly, ESP, Warning, Jump, Server, Shader, Esp2, LockBase, Run, Anti Kick
--- Giữ nguyên như script bạn đã gửi ở trên
--- ==================================================
-
 
 -- Các nút
 local btnLift     = createButton("⬆️ Lift : OFF", Color3.fromRGB(200,50,50))
