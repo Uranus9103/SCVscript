@@ -1,0 +1,83 @@
+-- LocalScript: gắn vào StarterPlayerScripts hoặc PlayerGui
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Tạo RemoteEvents nếu chưa có
+local saveEvent = ReplicatedStorage:FindFirstChild("SavePosition") or Instance.new("RemoteEvent", ReplicatedStorage)
+saveEvent.Name = "SavePosition"
+
+local moveEvent = ReplicatedStorage:FindFirstChild("MoveToPosition") or Instance.new("RemoteEvent", ReplicatedStorage)
+moveEvent.Name = "MoveToPosition"
+
+-- Biến lưu vị trí
+local savedPosition = nil
+local saved = false
+
+-- Lấy Character
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+-- Tạo Part gắn trên người
+local part = Instance.new("Part")
+part.Size = Vector3.new(2, 1, 2)
+part.Anchored = false
+part.CanCollide = false
+part.Parent = char
+part.Position = hrp.Position + Vector3.new(0, 3, 0)
+
+-- Weld để gắn theo HumanoidRootPart
+local weld = Instance.new("WeldConstraint")
+weld.Part0 = hrp
+weld.Part1 = part
+weld.Parent = part
+
+-- Tạo GUI
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.ResetOnSpawn = false
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(0, 50, 0, 50)
+button.Text = "Reset/Move"
+button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+button.TextScaled = true
+button.Parent = screenGui
+
+-- Hàm di chuyển mượt nhân vật về vị trí đã lưu (tự né vật)
+local function moveToPosition(targetPos)
+    local bodyPos = Instance.new("BodyPosition")
+    bodyPos.MaxForce = Vector3.new(1e5,1e5,1e5)
+    bodyPos.P = 1e4
+    bodyPos.D = 500
+    bodyPos.Position = targetPos
+    bodyPos.Parent = hrp
+
+    -- Xoá BodyPosition sau khi gần đến
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if (hrp.Position - targetPos).Magnitude < 1 then
+            bodyPos:Destroy()
+            connection:Disconnect()
+        end
+    end)
+end
+
+-- Nút click
+button.MouseButton1Click:Connect(function()
+    if not saved then
+        -- Reset vị trí nhân vật (ví dụ nhảy lên 5 studs)
+        hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0,5,0))
+        savedPosition = hrp.Position
+        saved = true
+        -- Gửi lên server (nếu muốn lưu server)
+        saveEvent:FireServer(savedPosition)
+        button.Text = "Move Back"
+    else
+        -- Di chuyển về vị trí đã lưu
+        if savedPosition then
+            moveToPosition(savedPosition)
+        end
+    end
+end)
