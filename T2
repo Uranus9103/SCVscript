@@ -4,15 +4,11 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
-local function getCharacter()
-    return player.Character or player.CharacterAdded:Wait()
-end
+-- ID Asset
+local tool1Id = 16458315457 -- dưới chân
+local tool2Id = 65288880    -- quay quanh
 
--- ID asset
-local tool1Id = 16458315457 -- xuất hiện dưới chân
-local tool2Id = 65288880    -- quay vòng quanh
-
--- Tạo GUI
+-- GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ToolGui"
 screenGui.ResetOnSpawn = false
@@ -26,7 +22,7 @@ button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 button.TextColor3 = Color3.new(1,1,1)
 button.Parent = screenGui
 
--- Hàm spawn asset
+-- Hàm spawn asset từ ID
 local function spawnAsset(id)
     local success, obj = pcall(function()
         return game:GetObjects("rbxassetid://"..id)[1]
@@ -40,22 +36,25 @@ local function spawnAsset(id)
     end
 end
 
--- Nhấn nút
 button.MouseButton1Click:Connect(function()
-    local character = getCharacter()
+    local character = player.Character or player.CharacterAdded:Wait()
     local hrp = character:WaitForChild("HumanoidRootPart")
 
-    -- Tool 1 dưới chân
+    -- Tool 1: dưới chân, đi theo
     local tool1 = spawnAsset(tool1Id)
     if tool1 then
-        tool1.CFrame = hrp.CFrame * CFrame.new(0, -3, 0)
+        RunService.RenderStepped:Connect(function()
+            if tool1.Parent and hrp.Parent then
+                tool1.CFrame = hrp.CFrame * CFrame.new(0, -3, 0)
+            end
+        end)
     end
 
-    -- Tool 2 quay vòng quanh
+    -- Tool 2: quay vòng quanh, đi theo
     local tool2 = spawnAsset(tool2Id)
     if tool2 then
         local angle = 0
-        local radius = 3
+        local radius = 4
         RunService.RenderStepped:Connect(function()
             if tool2.Parent and hrp.Parent then
                 angle = angle + math.rad(2) -- tốc độ quay
