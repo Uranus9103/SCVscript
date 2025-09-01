@@ -1,0 +1,116 @@
+local tool = script.Parent
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local InsertService = game:GetService("InsertService")
+
+-- ======= CẤU HÌNH =======
+local FOOT_MODEL_ID = 16458315457      -- Model dưới chân
+local ORBIT_MODEL_ID = 65288880        -- Model quả cầu quay vòng
+local NUM_ORBIT = 6                     -- Số quả cầu quay quanh
+local ORBIT_RADIUS = 5                  -- Bán kính vòng tròn
+local ORBIT_HEIGHT = 3                  -- Cao hơn HumanoidRootPart
+-- =========================
+
+local footModel
+local orbitModels = {}
+local active = false -- trạng thái bật/tắt
+
+-- Spawn model dưới chân
+local function spawnFoot(player)
+    if footModel and footModel.Parent then
+        footModel:Destroy()
+    end
+
+    local success, model = pcall(function()
+        return InsertService:LoadAsset(FOOT_MODEL_ID)
+    end)
+
+    if success and model then
+        local character = player.Character
+        if not character then return end
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        footModel = model
+        footModel.Parent = workspace
+
+        local primary = footModel.PrimaryPart or footModel:FindFirstChildWhichIsA("BasePart")
+        if primary then
+            footModel.PrimaryPart = primary
+            footModel:SetPrimaryPartCFrame(hrp.CFrame - Vector3.new(0, primary.Size.Y/2, 0))
+        end
+    else
+        warn("Không load được foot model!")
+    end
+end
+
+-- Spawn quả cầu quay vòng
+local function spawnOrbit(player)
+    -- Xóa cũ
+    for _, m in pairs(orbitModels) do
+        if m and m.Parent then m:Destroy() end
+    end
+    orbitModels = {}
+
+    local success, model = pcall(function()
+        return InsertService:LoadAsset(ORBIT_MODEL_ID)
+    end)
+    if not success or not model then
+        warn("Không load được orbit model!")
+        return
+    end
+
+    local character = player.Character
+    if not character then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for i=1,NUM_ORBIT do
+        local clone = model:Clone()
+        clone.Parent = workspace
+        local primary = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
+        if primary then clone.PrimaryPart = primary end
+        table.insert(orbitModels, clone)
+    end
+
+    -- Vòng tròn quay quanh người
+    local angle = 0
+    RunService.Heartbeat:Connect(function(dt)
+        if not active then return end
+        if not hrp then return end
+        angle = angle + dt -- tốc độ quay
+        for i, orb in ipairs(orbitModels) do
+            if orb and orb.PrimaryPart then
+                local theta = (2*math.pi/NUM_ORBIT)*i + angle
+                local x = math.cos(theta) * ORBIT_RADIUS
+                local z = math.sin(theta) * ORBIT_RADIUS
+                local pos = hrp.Position + Vector3.new(x, ORBIT_HEIGHT, z)
+                orb:SetPrimaryPartCFrame(CFrame.new(pos))
+            end
+        end
+    end)
+end
+
+-- Bật / tắt hiệu ứng
+local function toggleEffect(player)
+    active = not active
+    if active then
+        spawnFoot(player)
+        spawnOrbit(player)
+    else
+        -- Xóa model khi tắt
+        if footModel and footModel.Parent then footModel:Destroy() end
+        for _, m in pairs(orbitModels) do
+            if m and m.Parent then m:Destroy() end
+        end
+        orbitModels = {}
+    end
+end
+
+-- Khi click Tool
+tool.Activated:Connect(function()
+    local player = Players:GetPlayerFromCharacter(tool.Parent)
+    if player then
+        toggleEffect(player)
+    end
+end)
