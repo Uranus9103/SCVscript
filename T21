@@ -1,0 +1,115 @@
+-- LocalScript: StarterPlayerScripts
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer
+
+-- Lấy Character
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+local humanoid = char:WaitForChild("Humanoid")
+
+-- Biến lưu vị trí reset
+local resetPosition = nil
+local movedBack = false
+local resetDone = false
+
+-- Tạo Part đẩy nhân vật
+local pushPart = Instance.new("Part")
+pushPart.Size = Vector3.new(4,2,4)
+pushPart.Position = hrp.Position + Vector3.new(0,3,5)
+pushPart.Anchored = true
+pushPart.CanCollide = true
+pushPart.BrickColor = BrickColor.new("Bright red")
+pushPart.Parent = Workspace
+
+-- Tạo Part gắn trên người
+local part = Instance.new("Part")
+part.Size = Vector3.new(2,1,2)
+part.Anchored = false
+part.CanCollide = false
+part.Parent = char
+part.Position = hrp.Position + Vector3.new(0,3,0)
+
+local weld = Instance.new("WeldConstraint")
+weld.Part0 = hrp
+weld.Part1 = part
+weld.Parent = part
+
+-- GUI
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.ResetOnSpawn = false
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0,150,0,50)
+button.Position = UDim2.new(0,50,0,50)
+button.Text = "Reset/Move"
+button.TextScaled = true
+button.BackgroundColor3 = Color3.fromRGB(0,170,255)
+button.Parent = screenGui
+
+-- BodyPosition để di chuyển mượt và chống giật
+local bodyPos = Instance.new("BodyPosition")
+bodyPos.MaxForce = Vector3.new(1e5,1e5,1e5)
+bodyPos.P = 1e4
+bodyPos.D = 500
+bodyPos.Position = hrp.Position
+bodyPos.Parent = hrp
+
+-- Hàm di chuyển mượt về vị trí
+local function moveToPosition(targetPos)
+    bodyPos.Position = targetPos
+end
+
+-- RenderStepped để giữ anti giật / anti về chỗ cũ
+RunService.RenderStepped:Connect(function()
+    if resetDone and not movedBack and resetPosition then
+        bodyPos.Position = resetPosition
+    end
+end)
+
+-- Hàm reset 1 lần
+local function doReset()
+    if not resetDone then
+        hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0,5,0)) -- reset nhảy lên 5 studs
+        resetPosition = hrp.Position
+        bodyPos.Position = resetPosition
+        resetDone = true
+        button.Text = "Move Back"
+    end
+end
+
+-- Tự động reset khi script chạy
+doReset()
+
+-- Nút click để di chuyển về vị trí đã reset
+button.MouseButton1Click:Connect(function()
+    if resetDone and not movedBack then
+        movedBack = true
+        moveToPosition(resetPosition)
+    end
+end)
+
+-- Hàm đẩy thông minh
+local function pushCharacter(hit)
+    local hitChar = hit.Parent
+    if hitChar and hitChar:FindFirstChild("HumanoidRootPart") then
+        local hrpHit = hitChar:FindFirstChild("HumanoidRootPart")
+        local dir = (hrpHit.Position - pushPart.Position).Unit
+        -- Kiểm tra hướng trống (bằng raycast)
+        local rayOrigin = hrpHit.Position
+        local rayDirection = dir * 5
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {hrpHit, pushPart, hitChar}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        local result = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+        if not result then
+            hrpHit.Velocity = dir * 50 + Vector3.new(0,30,0) -- đẩy theo hướng trống + nhảy lên
+        else
+            -- nếu hướng kẹt, đẩy lên trên
+            hrpHit.Velocity = Vector3.new(0,50,0)
+        end
+    end
+end
+
+pushPart.Touched:Connect(pushCharacter)
