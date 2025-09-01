@@ -1,0 +1,209 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+--=====================================
+-- GUI
+--=====================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PushPartGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(1, -160, 0, 20)
+button.Text = "Bật Đẩy"
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 20
+button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+button.AutoButtonColor = true
+button.Parent = ScreenGui
+
+local corner = Instance.new("UICorner", button)
+corner.CornerRadius = UDim.new(0, 12)
+
+local gradient = Instance.new("UIGradient", button)
+gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 200, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 120, 200))
+}
+
+-- Dragging
+local dragging = false
+local dragStart, startPos
+
+button.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = button.Position
+	end
+end)
+
+button.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		if dragging then
+			local delta = input.Position - dragStart
+			button.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+
+game:GetService("UserInputService").InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+--=====================================
+-- Biến
+--=====================================
+local enabled = false
+local pushPart = nil
+local linearVel = nil
+local pushForce = 40
+local safeCFrame = nil
+local antiCheckDistance = 700
+local wasEnabledBeforeReset = false
+local savedCFrame = nil -- vị trí lưu khi reset
+local firstToggleDone = false -- đánh dấu lần đầu nhấn
+
+--=====================================
+-- Tạo part + LinearVelocity
+--=====================================
+local function createPush(char)
+	local hrp = char:WaitForChild("HumanoidRootPart")
+
+	pushPart = Instance.new("Part")
+	pushPart.Size = Vector3.new(2, 2, 0.5)
+	pushPart.Color = Color3.fromRGB(0, 200, 255)
+	pushPart.Anchored = false
+	pushPart.CanCollide = false
+	pushPart.Name = "PushPart"
+
+	local weld = Instance.new("WeldConstraint")
+	pushPart.Parent = char
+	pushPart.CFrame = hrp.CFrame * CFrame.new(0, 0, -2)
+	weld.Part0 = hrp
+	weld.Part1 = pushPart
+	weld.Parent = pushPart
+
+	linearVel = Instance.new("LinearVelocity")
+	linearVel.Attachment0 = Instance.new("Attachment", hrp)
+	linearVel.MaxForce = 1e6
+	linearVel.RelativeTo = Enum.ActuatorRelativeTo.World
+	linearVel.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	linearVel.VectorVelocity = Vector3.zero
+	linearVel.Parent = hrp
+end
+
+--=====================================
+-- Xoá part
+--=====================================
+local function destroyPush()
+	if pushPart then pushPart:Destroy() pushPart = nil end
+	if linearVel then linearVel:Destroy() linearVel = nil end
+end
+
+--=====================================
+-- Bật/Tắt + Reset + Đẩy về saved
+--=====================================
+local function togglePush()
+	local char = player.Character
+	if not char then return end
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	local hum = char:WaitForChild("Humanoid")
+
+	if not firstToggleDone then
+		-- Lần đầu: lưu vị trí, reset
+		savedCFrame = hrp.CFrame
+		firstToggleDone = true
+		button.Text = "Đang Reset..."
+		enabled = false
+		player:LoadCharacter()
+	else
+		-- Lần hai: bật push và di chuyển về savedCFrame
+		enabled = true
+		button.Text = "Tắt : Chạy"
+
+		if not pushPart and not linearVel then
+			createPush(char)
+		end
+
+		-- di chuyển đến vị trí lưu tránh vật thể
+		task.spawn(function()
+			task.wait(0.3) -- chờ character load
+			local targetPos = savedCFrame.Position
+			local safeOffset = Vector3.new(0, 5, 0) -- nâng lên tránh kẹt
+			hrp.CFrame = CFrame.new(targetPos + safeOffset)
+		end)
+	end
+end
+
+--=====================================
+-- Cập nhật di chuyển + anti giật
+--=====================================
+RunService.RenderStepped:Connect(function()
+	local char = player.Character
+	if not char then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChild("Humanoid")
+	if not hrp or not hum then return end
+
+	if enabled and linearVel then
+		local moveDir = hum.MoveDirection
+
+		-- anti giật
+		if (hrp.Position - safeCFrame.Position).Magnitude > antiCheckDistance then
+			hrp.CFrame = safeCFrame
+		end
+
+		-- di chuyển
+		if moveDir.Magnitude > 0 then
+			linearVel.VectorVelocity = moveDir * pushForce
+			safeCFrame = hrp.CFrame
+		else
+			linearVel.VectorVelocity = Vector3.zero
+			safeCFrame = hrp.CFrame
+		end
+	end
+end)
+
+--=====================================
+-- Anti reset + auto push sau respawn
+--=====================================
+player.CharacterRemoving:Connect(function()
+	wasEnabledBeforeReset = enabled
+end)
+
+player.CharacterAdded:Connect(function(char)
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	char:WaitForChild("Humanoid")
+
+	if safeCFrame then
+		task.wait(0.2)
+		hrp.CFrame = safeCFrame
+	end
+
+	if wasEnabledBeforeReset then
+		task.wait(0.2)
+		createPush(char)
+		enabled = true
+		button.Text = "Tắt : Chạy"
+	else
+		enabled = false
+		button.Text = "Bật : Chạy"
+	end
+end)
+
+--=====================================
+-- Nút bấm
+--=====================================
+button.MouseButton1Click:Connect(togglePush)
