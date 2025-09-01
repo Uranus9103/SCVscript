@@ -1,0 +1,222 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+--=====================================
+-- GUI
+--=====================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PushPartGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(1, -160, 0, 20)
+button.Text = "Bật Đẩy"
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 20
+button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+button.AutoButtonColor = true
+button.Parent = ScreenGui
+
+local corner = Instance.new("UICorner", button)
+corner.CornerRadius = UDim.new(0, 12)
+
+local gradient = Instance.new("UIGradient", button)
+gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 200, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 120, 200))
+}
+
+-- Drag GUI
+local dragging = false
+local dragStart, startPos
+button.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = button.Position
+	end
+end)
+button.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		if dragging then
+			local delta = input.Position - dragStart
+			button.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end
+end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+--=====================================
+-- Biến
+--=====================================
+local enabled = false
+local pushPart = nil
+local linearVel = nil
+local pushForce = 40
+local safeCFrame = nil
+local antiCheckDistance = 700
+
+local firstToggle = true
+local savedCFrame = nil
+local resetRequested = false
+
+--=====================================
+-- Tạo Part + LinearVelocity
+--=====================================
+local function createPush(char)
+	local hrp = char:WaitForChild("HumanoidRootPart")
+
+	pushPart = Instance.new("Part")
+	pushPart.Size = Vector3.new(2, 2, 0.5)
+	pushPart.Color = Color3.fromRGB(0, 200, 255)
+	pushPart.Anchored = false
+	pushPart.CanCollide = false
+	pushPart.Name = "PushPart"
+
+	local weld = Instance.new("WeldConstraint")
+	pushPart.Parent = char
+	pushPart.CFrame = hrp.CFrame * CFrame.new(0, 0, -2)
+	weld.Part0 = hrp
+	weld.Part1 = pushPart
+	weld.Parent = pushPart
+
+	linearVel = Instance.new("LinearVelocity")
+	linearVel.Attachment0 = Instance.new("Attachment", hrp)
+	linearVel.MaxForce = 1e6
+	linearVel.RelativeTo = Enum.ActuatorRelativeTo.World
+	linearVel.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	linearVel.VectorVelocity = Vector3.zero
+	linearVel.Parent = hrp
+end
+
+--=====================================
+-- Xoá Part
+--=====================================
+local function destroyPush()
+	if pushPart then pushPart:Destroy() pushPart = nil end
+	if linearVel then linearVel:Destroy() linearVel = nil end
+end
+
+--=====================================
+-- Toggle Push + Reset lần đầu
+--=====================================
+local function togglePush()
+	local char = player.Character
+	if not char then return end
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	local hum = char:WaitForChild("Humanoid")
+
+	enabled = not enabled
+
+	if enabled then
+		if firstToggle then
+			firstToggle = false
+			resetRequested = true
+			safeCFrame = hrp.CFrame
+			savedCFrame = hrp.CFrame
+			player:LoadCharacter()
+			return
+		end
+
+		if savedCFrame then
+			hrp.CFrame = savedCFrame
+		end
+
+		if not pushPart and not linearVel then
+			createPush(char)
+		end
+		button.Text = "Tắt : Chạy"
+	else
+		destroyPush()
+		button.Text = "Bật : Chạy"
+	end
+end
+
+--=====================================
+-- RenderStepped: di chuyển + anti giật + né vật
+--=====================================
+RunService.RenderStepped:Connect(function()
+	local char = player.Character
+	if not char then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChild("Humanoid")
+	if not hrp or not hum then return end
+
+	if enabled and linearVel then
+		local moveDir = hum.MoveDirection
+		if (hrp.Position - safeCFrame.Position).Magnitude > antiCheckDistance then
+			hrp.CFrame = safeCFrame
+		end
+
+		if moveDir.Magnitude > 0 then
+			-- Raycast kiểm tra vật cản phía trước
+			local rayParams = RaycastParams.new()
+			rayParams.FilterDescendantsInstances = {char} -- ignore nhân vật
+			rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+			local rayResult = Workspace:Raycast(hrp.Position, moveDir.Unit * 4, rayParams)
+
+			if rayResult then
+				linearVel.VectorVelocity = Vector3.zero -- có vật cản -> không đẩy
+			else
+				linearVel.VectorVelocity = moveDir * pushForce
+			end
+
+			safeCFrame = hrp.CFrame
+		else
+			linearVel.VectorVelocity = Vector3.zero
+			safeCFrame = hrp.CFrame
+		end
+	end
+end)
+
+--=====================================
+-- CharacterAdded + CharacterRemoving
+--=====================================
+player.CharacterRemoving:Connect(function()
+	if enabled then
+		local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			savedCFrame = hrp.CFrame
+		end
+	end
+end)
+
+player.CharacterAdded:Connect(function(char)
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	char:WaitForChild("Humanoid")
+
+	if resetRequested then
+		task.wait(0.2)
+		hrp.CFrame = savedCFrame
+		resetRequested = false
+	end
+
+	if enabled then
+		task.wait(0.2)
+		createPush(char)
+		button.Text = "Tắt : Chạy"
+	else
+		button.Text = "Bật : Chạy"
+	end
+end)
+
+--=====================================
+-- Nút bấm
+--=====================================
+button.MouseButton1Click:Connect(togglePush)
