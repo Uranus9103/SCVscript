@@ -1,0 +1,95 @@
+local tool = script.Parent
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local InsertService = game:GetService("InsertService")
+local remote = tool:WaitForChild("ToggleEffect")
+
+-- Cấu hình
+local FOOT_MODEL_ID = 16458315457
+local ORBIT_MODEL_ID = 65288880
+local NUM_ORBIT = 6
+local ORBIT_RADIUS = 5
+local ORBIT_HEIGHT = 3
+
+-- Lưu trạng thái theo player
+local playerData = {}
+
+local function spawnFoot(player)
+    local footModel
+    local success, model = pcall(function()
+        return InsertService:LoadAsset(FOOT_MODEL_ID)
+    end)
+    if success and model then
+        footModel = model
+        footModel.Parent = workspace
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local primary = footModel.PrimaryPart or footModel:FindFirstChildWhichIsA("BasePart")
+            if primary then
+                footModel.PrimaryPart = primary
+                footModel:SetPrimaryPartCFrame(hrp.CFrame - Vector3.new(0, primary.Size.Y/2, 0))
+            end
+        end
+    end
+    return footModel
+end
+
+local function spawnOrbit(player)
+    local orbitModels = {}
+    local success, model = pcall(function()
+        return InsertService:LoadAsset(ORBIT_MODEL_ID)
+    end)
+    if success and model then
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return {} end
+
+        for i=1,NUM_ORBIT do
+            local clone = model:Clone()
+            clone.Parent = workspace
+            local primary = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart")
+            if primary then clone.PrimaryPart = primary end
+            table.insert(orbitModels, clone)
+        end
+
+        -- Quay vòng
+        local angle = 0
+        local conn
+        conn = RunService.Heartbeat:Connect(function(dt)
+            if not playerData[player] or not playerData[player].active then
+                conn:Disconnect()
+                return
+            end
+            angle = angle + dt
+            for i, orb in ipairs(orbitModels) do
+                if orb and orb.PrimaryPart then
+                    local theta = (2*math.pi/NUM_ORBIT)*i + angle
+                    local x = math.cos(theta) * ORBIT_RADIUS
+                    local z = math.sin(theta) * ORBIT_RADIUS
+                    orb:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(x, ORBIT_HEIGHT, z))
+                end
+            end
+        end)
+    end
+    return orbitModels
+end
+
+-- Bật / tắt hiệu ứng
+remote.OnServerEvent:Connect(function(player)
+    if not playerData[player] then
+        playerData[player] = {active=false, foot=nil, orbit={}}
+    end
+
+    local data = playerData[player]
+    data.active = not data.active
+
+    if data.active then
+        data.foot = spawnFoot(player)
+        data.orbit = spawnOrbit(player)
+    else
+        if data.foot and data.foot.Parent then data.foot:Destroy() end
+        for _, orb in pairs(data.orbit) do
+            if orb and orb.Parent then orb:Destroy() end
+        end
+        data.orbit = {}
+    end
+end)
