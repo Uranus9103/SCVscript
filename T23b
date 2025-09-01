@@ -1,0 +1,87 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+local LocalPlayer = Players.LocalPlayer
+local aimbotEnabled = false
+local target = nil
+
+------------------------------------------------
+-- UI Button Toggle
+------------------------------------------------
+local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+screenGui.Name = "Aimbot_Toggle_GUI"
+
+local toggleButton = Instance.new("TextButton", screenGui)
+toggleButton.Size = UDim2.new(0,120,0,40)
+toggleButton.Position = UDim2.new(0,10,0,60)
+toggleButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Text = "Aimbot: OFF"
+
+toggleButton.MouseButton1Click:Connect(function()
+	aimbotEnabled = not aimbotEnabled
+	if aimbotEnabled then
+		toggleButton.Text = "Aimbot: ON"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(0,170,0)
+	else
+		toggleButton.Text = "Aimbot: OFF"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(170,0,0)
+	end
+end)
+
+------------------------------------------------
+-- Circle Indicator
+------------------------------------------------
+local circle = Drawing.new("Circle")
+circle.Visible = false
+circle.Color = Color3.fromRGB(255,0,0)
+circle.Thickness = 2
+circle.NumSides = 30
+circle.Radius = 10
+circle.Filled = false
+
+------------------------------------------------
+-- Tìm player gần nhất với tâm màn hình
+------------------------------------------------
+local function getClosestPlayer()
+	local closest, dist = nil, math.huge
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
+			local pos, visible = Camera:WorldToViewportPoint(plr.Character.HumanoidRootPart.Position)
+			if visible then
+				local screenPos = Vector2.new(pos.X, pos.Y)
+				local mousePos = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+				local mag = (screenPos - mousePos).Magnitude
+				if mag < dist then
+					dist = mag
+					closest = plr
+				end
+			end
+		end
+	end
+	return closest
+end
+
+------------------------------------------------
+-- RenderStep loop
+------------------------------------------------
+RunService.RenderStepped:Connect(function()
+	if aimbotEnabled then
+		target = getClosestPlayer()
+		if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+			local pos = Camera:WorldToViewportPoint(target.Character.HumanoidRootPart.Position)
+			Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position)
+
+			-- Hiện vòng tròn tại vị trí target trên màn hình
+			circle.Visible = true
+			circle.Position = Vector2.new(pos.X, pos.Y)
+		else
+			circle.Visible = false
+		end
+	else
+		target = nil
+		circle.Visible = false
+	end
+end)
