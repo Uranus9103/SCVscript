@@ -71,7 +71,6 @@ local linearVel = nil
 local pushForce = 40
 local safeCFrame = nil
 local antiCheckDistance = 700
-local wasEnabledBeforeReset = false
 local savedCFrame = nil -- vị trí lưu khi reset
 local firstToggleDone = false -- đánh dấu lần đầu nhấn
 
@@ -113,7 +112,7 @@ local function destroyPush()
 end
 
 --=====================================
--- Bật/Tắt + Reset + Đẩy về saved
+-- Bật/Tắt + Reset bằng Push
 --=====================================
 local function togglePush()
 	local char = player.Character
@@ -122,14 +121,22 @@ local function togglePush()
 	local hum = char:WaitForChild("Humanoid")
 
 	if not firstToggleDone then
-		-- Lần đầu: lưu vị trí, reset
+		-- Lần đầu: lưu vị trí và reset bằng đẩy lên
 		savedCFrame = hrp.CFrame
 		firstToggleDone = true
 		button.Text = "Đang Reset..."
-		enabled = false
-		player:LoadCharacter()
+		enabled = true
+
+		if not pushPart and not linearVel then
+			createPush(char)
+		end
+
+		-- Đẩy lên để respawn
+		linearVel.VectorVelocity = Vector3.new(0, 100, 0)
+		task.wait(0.5)
+		linearVel.VectorVelocity = Vector3.zero
 	else
-		-- Lần hai: bật push và di chuyển về savedCFrame
+		-- Lần hai: bật push và đẩy về savedCFrame
 		enabled = true
 		button.Text = "Tắt : Chạy"
 
@@ -137,12 +144,15 @@ local function togglePush()
 			createPush(char)
 		end
 
-		-- di chuyển đến vị trí lưu tránh vật thể
 		task.spawn(function()
-			task.wait(0.3) -- chờ character load
-			local targetPos = savedCFrame.Position
-			local safeOffset = Vector3.new(0, 5, 0) -- nâng lên tránh kẹt
-			hrp.CFrame = CFrame.new(targetPos + safeOffset)
+			task.wait(0.2)
+			local direction = (savedCFrame.Position - hrp.Position)
+			if direction.Magnitude > 1 then
+				local moveDir = direction.Unit
+				linearVel.VectorVelocity = moveDir * pushForce
+			else
+				linearVel.VectorVelocity = Vector3.zero
+			end
 		end)
 	end
 end
@@ -161,11 +171,11 @@ RunService.RenderStepped:Connect(function()
 		local moveDir = hum.MoveDirection
 
 		-- anti giật
-		if (hrp.Position - safeCFrame.Position).Magnitude > antiCheckDistance then
+		if safeCFrame and (hrp.Position - safeCFrame.Position).Magnitude > antiCheckDistance then
 			hrp.CFrame = safeCFrame
 		end
 
-		-- di chuyển
+		-- di chuyển theo phím
 		if moveDir.Magnitude > 0 then
 			linearVel.VectorVelocity = moveDir * pushForce
 			safeCFrame = hrp.CFrame
@@ -177,29 +187,16 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --=====================================
--- Anti reset + auto push sau respawn
+-- Tạo push sau respawn nếu cần
 --=====================================
-player.CharacterRemoving:Connect(function()
-	wasEnabledBeforeReset = enabled
-end)
-
 player.CharacterAdded:Connect(function(char)
 	local hrp = char:WaitForChild("HumanoidRootPart")
 	char:WaitForChild("Humanoid")
 
-	if safeCFrame then
-		task.wait(0.2)
-		hrp.CFrame = safeCFrame
-	end
+	task.wait(0.2)
 
-	if wasEnabledBeforeReset then
-		task.wait(0.2)
+	if enabled then
 		createPush(char)
-		enabled = true
-		button.Text = "Tắt : Chạy"
-	else
-		enabled = false
-		button.Text = "Bật : Chạy"
 	end
 end)
 
