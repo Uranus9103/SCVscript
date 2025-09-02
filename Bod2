@@ -4,19 +4,16 @@
 local ESP_CONFIG = {
     Size = UDim2.new(0,120,0,40),
     Offset = Vector3.new(0,6,0),
-
     Text = {
         Font = Enum.Font.Arcade,
         Color = Color3.fromRGB(85,255,85),
         StrokeColor = Color3.fromRGB(0,0,0),
         StrokeTransparency = 0,
     },
-
     Background = {
         Color = Color3.fromRGB(0,0,0),
         Transparency = 0.3,
     },
-
     Border = {
         Enabled = true,
         Thickness = 2,
@@ -38,7 +35,6 @@ local VALID_NAMES = {
     ["Talpa Di Fero"] = true,
 }
 
-local plotsFolder = Workspace:WaitForChild("Plots")
 local espList = {}
 local connections = {}
 local ESPEnabled = false
@@ -107,9 +103,25 @@ local function createESP(attachment, displayName)
     table.insert(connections, conn)
 end
 
--- 🚀 Quét plot để tạo ESP
-local function scanPlots()
-    clearESP()
+-- 🎛️ Nút bật/tắt
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ESPGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 140, 0, 40)
+toggleButton.Position = UDim2.new(0, 20, 0, 200)
+toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 18
+toggleButton.Text = "ESP: OFF"
+toggleButton.Parent = screenGui
+
+-- 🔍 Khi bật ESP: quét qua tất cả Attackchment để tạo
+local function scanOnce()
+    local plotsFolder = Workspace:WaitForChild("Plots")
     for _, plot in ipairs(plotsFolder:GetChildren()) do
         if plot:FindFirstChild("AnimalPodiums") then
             for _, podium in ipairs(plot.AnimalPodiums:GetChildren()) do
@@ -129,28 +141,13 @@ local function scanPlots()
     end
 end
 
--- 🎛️ Nút bật/tắt
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ESPGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
-
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 140, 0, 40)
-toggleButton.Position = UDim2.new(0, 20, 0, 200)
-toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-toggleButton.TextColor3 = Color3.fromRGB(255, 0, 0)
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.TextSize = 18
-toggleButton.Text = "ESP: OFF"
-toggleButton.Parent = screenGui
-
+-- 🟢 Toggle
 toggleButton.MouseButton1Click:Connect(function()
     ESPEnabled = not ESPEnabled
     if ESPEnabled then
         toggleButton.Text = "ESP: ON"
         toggleButton.TextColor3 = Color3.fromRGB(0, 255, 0)
-        scanPlots()
+        scanOnce()
     else
         toggleButton.Text = "ESP: OFF"
         toggleButton.TextColor3 = Color3.fromRGB(255, 0, 0)
