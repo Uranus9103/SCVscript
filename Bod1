@@ -1,0 +1,159 @@
+-- LocalScript trong StarterPlayerScripts
+
+-- ⚙️ Cấu hình ESP
+local ESP_CONFIG = {
+    Size = UDim2.new(0,120,0,40),
+    Offset = Vector3.new(0,6,0),
+
+    Text = {
+        Font = Enum.Font.Arcade,
+        Color = Color3.fromRGB(85,255,85),
+        StrokeColor = Color3.fromRGB(0,0,0),
+        StrokeTransparency = 0,
+    },
+
+    Background = {
+        Color = Color3.fromRGB(0,0,0),
+        Transparency = 0.3,
+    },
+
+    Border = {
+        Enabled = true,
+        Thickness = 2,
+        Color = Color3.fromRGB(0,0,0),
+    }
+}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+
+-- ✅ Danh sách tên hợp lệ
+local VALID_NAMES = {
+    ["Noobini Pizzanini"] = true,
+    ["Lirili Larila"] = true,
+    ["Tim Cheese"] = true,
+    ["FluriFlura"] = true,
+    ["Talpa Di Fero"] = true,
+}
+
+local plotsFolder = Workspace:WaitForChild("Plots")
+local espList = {}
+local connections = {}
+local ESPEnabled = false
+
+-- 🔄 Dọn ESP
+local function clearESP()
+    for _, esp in pairs(espList) do
+        if esp and esp.Parent then esp:Destroy() end
+    end
+    table.clear(espList)
+    for _, c in pairs(connections) do
+        c:Disconnect()
+    end
+    table.clear(connections)
+end
+
+-- 🟩 Tạo ESP
+local function createESP(attachment, displayName)
+    local gui = Instance.new("BillboardGui")
+    gui.Name="AnimalESP"
+    gui.Adornee=attachment
+    gui.Size=ESP_CONFIG.Size
+    gui.StudsOffset=ESP_CONFIG.Offset
+    gui.AlwaysOnTop=true
+
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(1,0,1,0)
+    bg.BackgroundColor3 = ESP_CONFIG.Background.Color
+    bg.BackgroundTransparency = ESP_CONFIG.Background.Transparency
+    bg.BorderSizePixel = 0
+    bg.Parent = gui
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.TextScaled = true
+    label.Font = ESP_CONFIG.Text.Font
+    label.TextColor3 = ESP_CONFIG.Text.Color
+    label.TextStrokeTransparency = ESP_CONFIG.Text.StrokeTransparency
+    label.TextStrokeColor3 = ESP_CONFIG.Text.StrokeColor
+    label.Text = displayName.Text
+    label.Parent = bg
+
+    if ESP_CONFIG.Border.Enabled then
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = ESP_CONFIG.Border.Thickness
+        stroke.Color = ESP_CONFIG.Border.Color
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Parent = bg
+    end
+
+    gui.Parent = localPlayer:WaitForChild("PlayerGui")
+    table.insert(espList,gui)
+
+    -- Kết nối update
+    local conn = RunService.RenderStepped:Connect(function()
+        if ESPEnabled and attachment and attachment.Parent and displayName and displayName.Text ~= "" then
+            local pos = attachment.WorldPosition or attachment.Position
+            gui.Enabled = true
+            label.Text = string.format("%s\n(%.1f, %.1f, %.1f)",
+                displayName.Text, pos.X, pos.Y, pos.Z)
+        else
+            gui.Enabled = false
+        end
+    end)
+    table.insert(connections, conn)
+end
+
+-- 🚀 Quét plot để tạo ESP
+local function scanPlots()
+    clearESP()
+    for _, plot in ipairs(plotsFolder:GetChildren()) do
+        if plot:FindFirstChild("AnimalPodiums") then
+            for _, podium in ipairs(plot.AnimalPodiums:GetChildren()) do
+                local spawnBase = podium:FindFirstChild("Base")
+                if spawnBase and spawnBase:FindFirstChild("Spawn") then
+                    local attachment = spawnBase.Spawn:FindFirstChild("Attackchment")
+                    if attachment and attachment:FindFirstChild("AnimalOverhead") then
+                        local overhead = attachment.AnimalOverhead
+                        local displayName = overhead:FindFirstChild("DisplayName")
+                        if displayName and displayName:IsA("TextLabel") and VALID_NAMES[displayName.Text] then
+                            createESP(attachment, displayName)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- 🎛️ Nút bật/tắt
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ESPGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 140, 0, 40)
+toggleButton.Position = UDim2.new(0, 20, 0, 200)
+toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 18
+toggleButton.Text = "ESP: OFF"
+toggleButton.Parent = screenGui
+
+toggleButton.MouseButton1Click:Connect(function()
+    ESPEnabled = not ESPEnabled
+    if ESPEnabled then
+        toggleButton.Text = "ESP: ON"
+        toggleButton.TextColor3 = Color3.fromRGB(0, 255, 0)
+        scanPlots()
+    else
+        toggleButton.Text = "ESP: OFF"
+        toggleButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+        clearESP()
+    end
+end)
